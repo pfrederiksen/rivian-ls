@@ -1,5 +1,5 @@
-# Binaries
-rivian-ls
+# Binaries (only in root, not cmd/rivian-ls directory)
+/rivian-ls
 *.exe
 *.exe~
 *.dll
