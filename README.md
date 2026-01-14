@@ -15,12 +15,21 @@ A production-quality terminal UI (TUI) and headless CLI tool for monitoring Rivi
 
 ## Installation
 
-### Prerequisites
+### Homebrew (Recommended)
 
-- Go 1.21 or later
-- A Rivian account with at least one vehicle
+```bash
+brew install pfrederiksen/tap/rivian-ls
+```
+
+### Download Binary
+
+Download the latest release for your platform from the [Releases page](https://github.com/pfrederiksen/rivian-ls/releases).
 
 ### From Source
+
+**Prerequisites:**
+- Go 1.21 or later
+- A Rivian account with at least one vehicle
 
 ```bash
 git clone https://github.com/pfrederiksen/rivian-ls.git
