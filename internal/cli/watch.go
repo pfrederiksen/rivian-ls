@@ -73,7 +73,7 @@ func (c *WatchCommand) Run(ctx context.Context, opts WatchOptions) error {
 	if wsErr != nil {
 		// WebSocket failed - fall back to polling mode
 		_, _ = fmt.Fprintln(os.Stderr, "\nWebSocket connection failed (this is a known Rivian API limitation).")
-		_, _ = fmt.Fprintln(os.Stderr, "Falling back to polling mode (30-second intervals)...\n")
+		_, _ = fmt.Fprintln(os.Stderr, "Falling back to polling mode (30-second intervals)...")
 		return c.runPolling(ctx, formatter, 30*time.Second)
 	}
 	return nil
