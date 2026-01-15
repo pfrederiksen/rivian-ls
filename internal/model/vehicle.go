@@ -171,16 +171,16 @@ func FromRivianVehicleState(v *rivian.VehicleState) *VehicleState {
 		UpdatedAt:       v.UpdatedAt,
 		BatteryLevel:    v.BatteryLevel,
 		BatteryCapacity: v.BatteryCapacity,
-		RangeEstimate:   v.RangeEstimate,
+		RangeEstimate:   kilometersToMiles(v.RangeEstimate),
 		ChargeState:     ChargeState(v.ChargeState),
 		ChargeLimit:     v.ChargeLimit,
 		ChargingRate:    v.ChargingRate,
 		TimeToCharge:    v.ChargingTimeLeft,
 		IsLocked:        v.IsLocked,
 		IsOnline:        v.IsOnline,
-		Odometer:        v.Odometer,
-		CabinTemp:       v.CabinTemp,
-		ExteriorTemp:    v.ExteriorTemp,
+		Odometer:        metersToMiles(v.Odometer),
+		CabinTemp:       celsiusToFahrenheit(v.CabinTemp),
+		ExteriorTemp:    celsiusToFahrenheit(v.ExteriorTemp),
 		Doors:           closuresFromRivian(v.Doors),
 		Windows:         closuresFromRivian(v.Windows),
 		Frunk:           ClosureStatus(v.Frunk),
@@ -223,4 +223,26 @@ func closuresFromRivian(rc rivian.ClosureState) Closures {
 		RearLeft:   ClosureStatus(rc.RearLeft),
 		RearRight:  ClosureStatus(rc.RearRight),
 	}
+}
+
+// metersToMiles converts meters to miles.
+// Rivian API returns odometer in meters, we display in miles.
+func metersToMiles(meters float64) float64 {
+	return meters / 1609.34
+}
+
+// kilometersToMiles converts kilometers to miles.
+// Rivian API returns range estimate in kilometers, we display in miles.
+func kilometersToMiles(km float64) float64 {
+	return km / 1.60934
+}
+
+// celsiusToFahrenheit converts temperature from Celsius to Fahrenheit.
+// Rivian API returns temperatures in Celsius, we display in Fahrenheit.
+func celsiusToFahrenheit(celsius *float64) *float64 {
+	if celsius == nil {
+		return nil
+	}
+	fahrenheit := (*celsius * 9.0 / 5.0) + 32.0
+	return &fahrenheit
 }

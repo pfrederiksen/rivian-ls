@@ -110,8 +110,10 @@ func TestReducer_VehicleStateReceived(t *testing.T) {
 	if state.BatteryLevel != 85.5 {
 		t.Errorf("BatteryLevel = %v, want %v", state.BatteryLevel, 85.5)
 	}
-	if state.RangeEstimate != 250.0 {
-		t.Errorf("RangeEstimate = %v, want %v", state.RangeEstimate, 250.0)
+	// RangeEstimate should be converted from km to miles (250 km = ~155.34 mi)
+	expectedRange := 250.0 / 1.60934
+	if state.RangeEstimate != expectedRange {
+		t.Errorf("RangeEstimate = %v, want %v (converted from 250 km)", state.RangeEstimate, expectedRange)
 	}
 	if state.ChargeState != ChargeStateCharging {
 		t.Errorf("ChargeState = %v, want %v", state.ChargeState, ChargeStateCharging)
@@ -154,6 +156,7 @@ func TestReducer_PartialStateUpdate(t *testing.T) {
 	if state.BatteryLevel != 85.5 {
 		t.Errorf("BatteryLevel = %v, want %v", state.BatteryLevel, 85.5)
 	}
+	// PartialStateUpdate sets values directly (no conversion needed)
 	if state.RangeEstimate != 250.0 {
 		t.Errorf("RangeEstimate = %v, want %v", state.RangeEstimate, 250.0)
 	}
@@ -260,10 +263,14 @@ func TestReducer_MultipleEvents(t *testing.T) {
 	if state.BatteryLevel != 90.0 {
 		t.Errorf("BatteryLevel = %v, want %v", state.BatteryLevel, 90.0)
 	}
-	if state.RangeEstimate != 250.0 {
-		t.Errorf("RangeEstimate = %v, want %v", state.RangeEstimate, 250.0)
+	// RangeEstimate should be converted from km to miles (250 km = ~155.34 mi)
+	expectedRange := 250.0 / 1.60934
+	if state.RangeEstimate != expectedRange {
+		t.Errorf("RangeEstimate = %v, want %v (converted from 250 km)", state.RangeEstimate, expectedRange)
 	}
-	if state.CabinTemp == nil || *state.CabinTemp != 72.0 {
-		t.Error("CabinTemp should be preserved")
+	// CabinTemp should be converted from Celsius to Fahrenheit (72°C = 161.6°F)
+	expectedTemp := (72.0 * 9.0 / 5.0) + 32.0
+	if state.CabinTemp == nil || *state.CabinTemp != expectedTemp {
+		t.Errorf("CabinTemp = %v, want %v (converted from 72°C)", state.CabinTemp, expectedTemp)
 	}
 }

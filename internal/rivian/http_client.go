@@ -107,6 +107,21 @@ func (c *HTTPClient) GetCredentials() *Credentials {
 	return &creds
 }
 
+// SetCredentials sets the client credentials (for restoring from cache).
+func (c *HTTPClient) SetCredentials(creds *Credentials) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if creds == nil {
+		c.credentials = nil
+		return
+	}
+
+	// Store a copy to avoid external mutation
+	credsCopy := *creds
+	c.credentials = &credsCopy
+}
+
 // graphqlRequest represents a GraphQL request.
 type graphqlRequest struct {
 	Query     string                 `json:"query"`

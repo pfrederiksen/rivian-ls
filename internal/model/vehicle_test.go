@@ -232,8 +232,10 @@ func TestFromRivianVehicleState(t *testing.T) {
 	if state.BatteryLevel != rivState.BatteryLevel {
 		t.Errorf("BatteryLevel = %v, want %v", state.BatteryLevel, rivState.BatteryLevel)
 	}
-	if state.RangeEstimate != rivState.RangeEstimate {
-		t.Errorf("RangeEstimate = %v, want %v", state.RangeEstimate, rivState.RangeEstimate)
+	// RangeEstimate should be converted from km to miles
+	expectedRange := rivState.RangeEstimate / 1.60934
+	if state.RangeEstimate != expectedRange {
+		t.Errorf("RangeEstimate = %v, want %v (converted from %v km)", state.RangeEstimate, expectedRange, rivState.RangeEstimate)
 	}
 	if state.ChargeState != ChargeStateCharging {
 		t.Errorf("ChargeState = %v, want %v", state.ChargeState, ChargeStateCharging)

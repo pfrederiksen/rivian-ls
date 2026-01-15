@@ -267,13 +267,14 @@ func TestParseChargeState(t *testing.T) {
 		{"charging", ChargeStateCharging},
 		{"complete", ChargeStateComplete},
 		{"fully_charged", ChargeStateComplete},
+		{"charging_complete", ChargeStateComplete},
 		{"scheduled", ChargeStateScheduled},
 		{"disconnected", ChargeStateDisconnected},
 		{"not_connected", ChargeStateDisconnected},
 		{"not_charging", ChargeStateNotCharging},
 		{"stopped", ChargeStateNotCharging},
 		{"unknown_status", ChargeStateUnknown},
-		{"", ChargeStateUnknown},
+		{"", ChargeStateDisconnected},
 	}
 
 	for _, tt := range tests {

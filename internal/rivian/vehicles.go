@@ -3,6 +3,7 @@ package rivian
 import (
 	"context"
 	"fmt"
+	"os"
 	"time"
 )
 
@@ -402,7 +403,7 @@ func parseChargeState(status string) ChargeState {
 	switch status {
 	case "charging":
 		return ChargeStateCharging
-	case "complete", "fully_charged":
+	case "complete", "fully_charged", "charging_complete":
 		return ChargeStateComplete
 	case "scheduled":
 		return ChargeStateScheduled
@@ -410,7 +411,12 @@ func parseChargeState(status string) ChargeState {
 		return ChargeStateDisconnected
 	case "not_charging", "stopped":
 		return ChargeStateNotCharging
+	case "":
+		// Empty string means disconnected/not plugged in
+		return ChargeStateDisconnected
 	default:
+		// Log unknown values for debugging
+		fmt.Fprintf(os.Stderr, "Unknown charge state from API: %q\n", status)
 		return ChargeStateUnknown
 	}
 }

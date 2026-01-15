@@ -78,28 +78,28 @@ make run
 
 ```
 internal/
-├── rivian/      # Rivian API client
-│   ├── auth.go          # Authentication flow (login, OTP, tokens)
-│   ├── graphql.go       # GraphQL queries and mutations
-│   ├── websocket.go     # WebSocket subscription client
-│   └── client.go        # Main client interface
-├── model/       # Domain models
-│   ├── vehicle.go       # Vehicle state struct
-│   ├── reducer.go       # State reducer (merges API events)
-│   └── insights.go      # Derived metrics (ready score, etc.)
-├── tui/         # Bubble Tea TUI
-│   ├── model.go         # Bubble Tea model
-│   ├── dashboard.go     # Dashboard view
-│   ├── charge.go        # Charge view
-│   └── health.go        # Health/history view
-├── cli/         # Headless CLI
-│   ├── status.go        # Snapshot command
-│   ├── watch.go         # Streaming command
-│   ├── export.go        # Export command
-│   └── format.go        # Output formatters (JSON, YAML, CSV)
-└── store/       # Local persistence
-    ├── store.go         # Store interface
-    └── sqlite.go        # SQLite implementation
+├── rivian/      # Rivian API client (Coverage: 67.3%)
+│   ├── client.go        # Client interface and types
+│   ├── http_client.go   # HTTP/GraphQL implementation
+│   ├── auth.go          # 3-step authentication (CSRF → Login → OTP)
+│   ├── vehicles.go      # Vehicle queries and parsing
+│   └── websocket.go     # WebSocket subscription client
+├── model/       # Domain models (Coverage: 84.5%)
+│   ├── vehicle.go       # VehicleState domain model
+│   ├── reducer.go       # Redux-style event reducer
+│   └── insights.go      # Derived metrics (ReadyScore, issues)
+├── store/       # Local persistence (Coverage: 71.3%)
+│   └── store.go         # SQLite storage with dual column+JSON strategy
+├── cli/         # Headless CLI (Coverage: 57.9%)
+│   ├── format.go        # Output formatters (JSON, YAML, CSV, text, table)
+│   ├── status.go        # Current state snapshot command
+│   ├── watch.go         # Real-time streaming command
+│   └── export.go        # Historical data export command
+└── tui/         # Bubble Tea TUI (TODO)
+    ├── model.go         # Bubble Tea model
+    ├── dashboard.go     # Dashboard view
+    ├── charge.go        # Charge view
+    └── health.go        # Health/history view
 ```
 
 ### Key Architectural Decisions
@@ -519,6 +519,195 @@ go test -v ./internal/rivian/...
 # Run specific test
 go test -v -run TestAuthentication ./internal/rivian/
 ```
+
+## Headless CLI Commands
+
+The CLI provides three main commands for non-interactive vehicle monitoring and data export, implemented in `internal/cli/`.
+
+### Command Overview
+
+| Command | Purpose | Output Formats |
+|---------|---------|----------------|
+| `status` | Current vehicle state snapshot | JSON, YAML, CSV, text, table |
+| `watch` | Real-time streaming updates | JSON, YAML, CSV, text, table |
+| `export` | Historical data export | JSON, YAML, CSV |
+
+### status - Current State Snapshot
+
+Displays current vehicle state from either live API query or cached data.
+
+**Usage:**
+```bash
+# Live query (default)
+rivian-ls status --format json
+
+# Pretty-printed JSON
+rivian-ls status --format json --pretty
+
+# Human-readable text
+rivian-ls status --format text
+
+# Offline mode (use cached data)
+rivian-ls status --offline --format text
+
+# Table format for quick overview
+rivian-ls status --format table
+```
+
+**Behavior:**
+- Live mode: Queries API, updates ReadyScore, saves to storage
+- Offline mode: Reads latest state from SQLite storage
+- Auto-saves all live queries for offline access later
+
+### watch - Real-Time Streaming
+
+Streams vehicle state updates in real-time using WebSocket or polling.
+
+**Usage:**
+```bash
+# WebSocket mode (real-time, default)
+rivian-ls watch --format text
+
+# Polling mode (30-second intervals)
+rivian-ls watch --interval 30s --format json
+
+# Table format for monitoring
+rivian-ls watch --format table
+
+# Pretty JSON for debugging
+rivian-ls watch --format json --pretty
+```
+
+**Behavior:**
+- WebSocket mode (default): Subscribes to live updates via GraphQL subscriptions
+- Polling mode: Queries API at specified interval
+- Graceful shutdown: Ctrl+C triggers cleanup and connection close
+- Auto-saves all updates to storage
+- Uses Redux reducer for incremental state updates
+
+**WebSocket Update Flow:**
+1. Initial HTTP query for full state
+2. Subscribe to vehicle state changes
+3. Receive partial updates (battery, range, charging, lock, temp)
+4. Apply updates via PartialStateUpdate event
+5. Output formatted state
+6. Save to storage
+
+### export - Historical Data Export
+
+Exports historical vehicle state data from local storage.
+
+**Usage:**
+```bash
+# Last 24 hours as CSV
+rivian-ls export --since 24h --format csv > history.csv
+
+# Specific date range as JSON
+rivian-ls export --since 2024-01-01 --until 2024-01-15 --format json
+
+# Last 100 states (default)
+rivian-ls export --format csv
+
+# Limited number of records
+rivian-ls export --since 7d --limit 50 --format yaml
+
+# Pretty JSON for analysis
+rivian-ls export --since 30d --format json --pretty > month.json
+```
+
+**Query Modes:**
+- Range query: Both `--since` and `--until` specified
+- History query: Only `--since` specified (with optional `--limit`)
+- Recent query: No time flags (last 100 states from past year)
+
+**Time Formats:**
+- Absolute: `2024-01-15T10:00:00Z`, `2024-01-15`
+- Relative: `24h`, `7d`, `30d`, `1h30m`
+
+### Output Formatters
+
+All commands support multiple output formats via `--format` flag.
+
+#### JSON Format
+- Machine-readable structured data
+- `--pretty` flag for indented output
+- Preserves all data types (numbers, booleans, nulls)
+- Perfect for: API integration, data processing, scripts
+
+#### YAML Format
+- Human-readable structured data
+- 2-space indentation
+- Great for: Configuration-style output, manual inspection
+- Smaller than pretty JSON
+
+#### CSV Format
+- Excel-compatible tabular data
+- Header row with field names
+- Flattened structure (no nested objects)
+- Fields: Timestamp, VehicleID, VIN, Name, Model, BatteryLevel, RangeEstimate, ChargeState, ChargeLimit, IsLocked, IsOnline, Latitude, Longitude, CabinTemp, ExteriorTemp, Odometer, ReadyScore
+- Perfect for: Spreadsheet analysis, data visualization, reporting
+
+#### Text Format
+- Human-friendly terminal output
+- Formatted sections:
+  - Vehicle identity (name, model, VIN)
+  - Battery & range with status
+  - Charging state and rate
+  - Security (lock, doors, windows, closures)
+  - Climate (cabin/exterior temps)
+  - Location coordinates
+  - Odometer reading
+  - Ready Score
+  - Issue list (if any)
+- Perfect for: Terminal monitoring, quick checks
+
+#### Table Format
+- Compact columnar layout
+- Shows multiple states in rows
+- Fixed-width columns
+- Headers: TIMESTAMP, BATTERY, RANGE, LOCK, CHARGING, STATUS
+- Perfect for: Comparing state history, trends over time
+
+### Implementation Architecture
+
+**Command Pattern:**
+```go
+type StatusCommand struct {
+    client    rivian.Client
+    store     *store.Store
+    vehicleID string
+    output    io.Writer
+}
+
+func (c *StatusCommand) Run(ctx context.Context, opts StatusOptions) error
+```
+
+**Strategy Pattern for Formatters:**
+```go
+type Formatter interface {
+    FormatState(w io.Writer, state *model.VehicleState) error
+    FormatStates(w io.Writer, states []*model.VehicleState) error
+}
+```
+
+**Key Design Decisions:**
+1. Commands operate on io.Writer for testability
+2. Context-aware for cancellation and timeout
+3. Non-fatal errors (storage) log warnings
+4. Fatal errors return to caller
+5. Dependency injection for testing
+
+### Testing Strategy
+
+CLI tests use:
+- Mock `rivian.Client` implementation
+- Temporary SQLite databases (`t.TempDir()`)
+- Bytes buffer for output verification
+- Table-driven tests for formatters
+
+**Coverage:** 57.9% overall (83.8% for formatters)
+
+Lower coverage on watch command due to WebSocket complexity and signal handling, which are integration-tested manually.
 
 ## Adding New Features
 
