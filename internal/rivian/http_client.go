@@ -122,6 +122,20 @@ func (c *HTTPClient) SetCredentials(creds *Credentials) {
 	c.credentials = &credsCopy
 }
 
+// GetCSRFToken returns the current CSRF token.
+func (c *HTTPClient) GetCSRFToken() string {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	return c.csrfToken
+}
+
+// GetAppSessionID returns the current app session ID.
+func (c *HTTPClient) GetAppSessionID() string {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	return c.appSessionID
+}
+
 // graphqlRequest represents a GraphQL request.
 type graphqlRequest struct {
 	Query     string                 `json:"query"`

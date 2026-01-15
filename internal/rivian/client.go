@@ -106,10 +106,17 @@ const (
 
 // TirePressures represents tire pressure readings for all four tires.
 type TirePressures struct {
-	FrontLeft  float64 // PSI
-	FrontRight float64 // PSI
-	RearLeft   float64 // PSI
-	RearRight  float64 // PSI
+	FrontLeft  float64 // PSI (0 if not available)
+	FrontRight float64 // PSI (0 if not available)
+	RearLeft   float64 // PSI (0 if not available)
+	RearRight  float64 // PSI (0 if not available)
+
+	// Status from API (Rivian doesn't expose PSI values, only status)
+	FrontLeftStatus  string
+	FrontRightStatus string
+	RearLeftStatus   string
+	RearRightStatus  string
+
 	UpdatedAt  time.Time
 }
 

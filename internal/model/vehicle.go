@@ -114,12 +114,29 @@ func (c Closures) AnyOpen() bool {
 		c.RearRight == ClosureStatusOpen
 }
 
+// TirePressureStatus represents the status of a tire's pressure.
+type TirePressureStatus string
+
+const (
+	TirePressureStatusUnknown TirePressureStatus = "unknown"
+	TirePressureStatusOK      TirePressureStatus = "OK"
+	TirePressureStatusLow     TirePressureStatus = "low"
+	TirePressureStatusHigh    TirePressureStatus = "high"
+)
+
 // TirePressures represents tire pressure readings.
 type TirePressures struct {
-	FrontLeft  float64 // PSI
-	FrontRight float64 // PSI
-	RearLeft   float64 // PSI
-	RearRight  float64 // PSI
+	FrontLeft  float64 // PSI (0 if not available)
+	FrontRight float64 // PSI (0 if not available)
+	RearLeft   float64 // PSI (0 if not available)
+	RearRight  float64 // PSI (0 if not available)
+
+	// Status from API (API doesn't provide PSI, only status)
+	FrontLeftStatus  TirePressureStatus
+	FrontRightStatus TirePressureStatus
+	RearLeftStatus   TirePressureStatus
+	RearRightStatus  TirePressureStatus
+
 	UpdatedAt  time.Time
 }
 
@@ -129,6 +146,14 @@ func (t TirePressures) AnyLow(threshold float64) bool {
 		t.FrontRight < threshold ||
 		t.RearLeft < threshold ||
 		t.RearRight < threshold
+}
+
+// AnyStatusLow returns true if any tire has a "low" status.
+func (t TirePressures) AnyStatusLow() bool {
+	return t.FrontLeftStatus == TirePressureStatusLow ||
+		t.FrontRightStatus == TirePressureStatusLow ||
+		t.RearLeftStatus == TirePressureStatusLow ||
+		t.RearRightStatus == TirePressureStatusLow
 }
 
 // RangeStatus represents the range warning level.
@@ -186,11 +211,15 @@ func FromRivianVehicleState(v *rivian.VehicleState) *VehicleState {
 		Frunk:           ClosureStatus(v.Frunk),
 		Liftgate:        ClosureStatus(v.Liftgate),
 		TirePressures: TirePressures{
-			FrontLeft:  v.TirePressures.FrontLeft,
-			FrontRight: v.TirePressures.FrontRight,
-			RearLeft:   v.TirePressures.RearLeft,
-			RearRight:  v.TirePressures.RearRight,
-			UpdatedAt:  v.TirePressures.UpdatedAt,
+			FrontLeft:        v.TirePressures.FrontLeft,
+			FrontRight:       v.TirePressures.FrontRight,
+			RearLeft:         v.TirePressures.RearLeft,
+			RearRight:        v.TirePressures.RearRight,
+			FrontLeftStatus:  TirePressureStatus(v.TirePressures.FrontLeftStatus),
+			FrontRightStatus: TirePressureStatus(v.TirePressures.FrontRightStatus),
+			RearLeftStatus:   TirePressureStatus(v.TirePressures.RearLeftStatus),
+			RearRightStatus:  TirePressureStatus(v.TirePressures.RearRightStatus),
+			UpdatedAt:        v.TirePressures.UpdatedAt,
 		},
 	}
 
@@ -212,7 +241,39 @@ func FromRivianVehicleState(v *rivian.VehicleState) *VehicleState {
 	// Calculate derived metrics
 	state.RangeStatus = DetermineRangeStatus(state.RangeEstimate)
 
+	// Estimate battery capacity if not provided by API
+	if state.BatteryCapacity == 0 && state.BatteryLevel > 0 && state.RangeEstimate > 0 {
+		state.BatteryCapacity = estimateBatteryCapacity(state.Model, state.BatteryLevel, state.RangeEstimate)
+	}
+
 	return state
+}
+
+// estimateBatteryCapacity calculates battery capacity from current charge level and range.
+// Uses typical efficiency values for Rivian vehicles to estimate total capacity.
+func estimateBatteryCapacity(model string, batteryPercent, rangeMiles float64) float64 {
+	if batteryPercent <= 0 || rangeMiles <= 0 {
+		return 0
+	}
+
+	// Calculate range at 100%
+	rangeAt100 := rangeMiles / (batteryPercent / 100.0)
+
+	// Typical efficiency for Rivian vehicles (mi/kWh)
+	// R1T: ~2.0 mi/kWh average
+	// R1S: ~2.1 mi/kWh average (slightly more efficient due to aerodynamics)
+	var efficiency float64
+	if model == "R1S" {
+		efficiency = 2.1
+	} else {
+		efficiency = 2.0 // R1T or unknown
+	}
+
+	// Calculate capacity: range / efficiency
+	// This gives us the usable capacity
+	capacity := rangeAt100 / efficiency
+
+	return capacity
 }
 
 // closuresFromRivian converts Rivian API ClosureState to our Closures.

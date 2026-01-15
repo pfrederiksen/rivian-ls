@@ -92,10 +92,9 @@ type refreshTokenResponse struct {
 	} `json:"refreshAccessToken"`
 }
 
-// Authenticate performs login with email and password.
-// Returns OTPRequiredError if MFA is enabled.
-func (c *HTTPClient) Authenticate(ctx context.Context, email, password string) error {
-	// Step 1: Get CSRF token and app session
+// CreateSession creates a new CSRF token and app session ID.
+// This should be called before using WebSocket connections.
+func (c *HTTPClient) CreateSession(ctx context.Context) error {
 	var csrfResp csrfTokenResponse
 	if err := c.doGraphQL(ctx, createCSRFTokenMutation, nil, &csrfResp); err != nil {
 		return fmt.Errorf("create CSRF token: %w", err)
@@ -104,6 +103,20 @@ func (c *HTTPClient) Authenticate(ctx context.Context, email, password string) e
 	c.mu.Lock()
 	c.csrfToken = csrfResp.CreateCsrfToken.CsrfToken
 	c.appSessionID = csrfResp.CreateCsrfToken.AppSessionToken
+	c.mu.Unlock()
+
+	return nil
+}
+
+// Authenticate performs login with email and password.
+// Returns OTPRequiredError if MFA is enabled.
+func (c *HTTPClient) Authenticate(ctx context.Context, email, password string) error {
+	// Step 1: Get CSRF token and app session
+	if err := c.CreateSession(ctx); err != nil {
+		return err
+	}
+
+	c.mu.Lock()
 	c.email = email // Store email for OTP flow
 	c.mu.Unlock()
 

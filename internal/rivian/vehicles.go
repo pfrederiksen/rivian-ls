@@ -381,10 +381,18 @@ func parseVehicleState(vehicleID string, apiState vehicleStateData) *VehicleStat
 		state.TonneauCover = &cs
 	}
 
-	// Tire pressures - API returns status strings, not pressure values
-	// We'll just indicate if they're available
+	// Tire pressures - API only provides status ("OK"/"low"), not actual PSI values
 	if apiState.TirePressureStatusFrontLeft != nil {
-		state.TirePressures.FrontLeft = 0 // Status only, no actual pressure
+		state.TirePressures.FrontLeftStatus = apiState.TirePressureStatusFrontLeft.Value
+	}
+	if apiState.TirePressureStatusFrontRight != nil {
+		state.TirePressures.FrontRightStatus = apiState.TirePressureStatusFrontRight.Value
+	}
+	if apiState.TirePressureStatusRearLeft != nil {
+		state.TirePressures.RearLeftStatus = apiState.TirePressureStatusRearLeft.Value
+	}
+	if apiState.TirePressureStatusRearRight != nil {
+		state.TirePressures.RearRightStatus = apiState.TirePressureStatusRearRight.Value
 	}
 
 	// Location

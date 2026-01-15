@@ -95,11 +95,11 @@ internal/
 │   ├── status.go        # Current state snapshot command
 │   ├── watch.go         # Real-time streaming command
 │   └── export.go        # Historical data export command
-└── tui/         # Bubble Tea TUI (TODO)
-    ├── model.go         # Bubble Tea model
-    ├── dashboard.go     # Dashboard view
-    ├── charge.go        # Charge view
-    └── health.go        # Health/history view
+└── tui/         # Bubble Tea TUI (Coverage: TBD)
+    ├── model.go         # Bubble Tea model (Elm architecture)
+    ├── dashboard.go     # Dashboard view (battery, charging, security, tires, stats)
+    ├── charge.go        # Detailed charging view
+    └── health.go        # Health/history view with timeline
 ```
 
 ### Key Architectural Decisions
@@ -311,8 +311,9 @@ query GetVehicleState($vehicleID: String!) {
 2. **Timestamped values**: Every sensor value is wrapped in `{__typename, timeStamp, value}`
 3. **Timestamp format**: ISO 8601 strings (e.g., `"2024-01-15T10:30:00.000Z"`), NOT Unix integers
 4. **Location**: `gnssLocation` has `latitude`/`longitude` directly, not nested in a `value` field
-5. **Tire pressure**: API returns status strings ("normal", "low"), NOT actual PSI values
-6. **Odometer**: Value is in meters (multiply by 0.000621371 for miles)
+5. **Tire pressure**: API returns status strings ("OK", "low", "high"), NOT actual PSI values - Rivian doesn't expose raw sensor data
+6. **Battery capacity**: Not provided by API - must be estimated from batteryLevel and distanceToEmpty using typical efficiency values (R1T: ~2.0 mi/kWh, R1S: ~2.1 mi/kWh)
+7. **Odometer**: Value is in meters (multiply by 0.000621371 for miles)
 
 **Available fields** (tested subset):
 - `batteryLevel`, `batteryLimit`, `distanceToEmpty`
@@ -329,15 +330,37 @@ See [RivDocs](https://rivian-api.kaedenb.org/app/vehicle-info/vehicle-state/) fo
 
 ### WebSocket Subscriptions
 
-**STATUS**: Not yet implemented.
+**STATUS**: Implemented with graceful degradation.
 
-Planned subscriptions:
+**WebSocket Endpoint**: `wss://rivian.com/api/gql/gateway/graphql`
 
-1. **Vehicle state updates**: Battery, charging, range
-2. **Tire pressure updates**: Individual tire pressures
-3. **Closures**: Doors, frunk, liftgate, windows
+**Required Headers**:
+```
+apollographql-client-name: com.rivian.android.consumer
+Sec-WebSocket-Protocol: graphql-ws
+a-sess: <appSessionToken>
+csrf-token: <csrfToken>
+u-sess: <userSessionToken>
+```
 
-WebSocket endpoint and subscription format TBD based on further reverse engineering.
+**Critical Implementation Details**:
+1. Use `graphql-ws` protocol (NOT `graphql-transport-ws`)
+2. Send `connection_init` message immediately after connection with `apollographql-client-name` in payload
+3. CSRF token and app session ID must be FRESH - call `CreateCSRFToken` before each WebSocket connection
+4. WebSocket connection often fails with "bad handshake" - implement graceful degradation (use manual refresh as fallback)
+
+**Implemented Subscriptions**:
+1. **vehicleState**: Real-time updates for battery, charging, range, locks, temperature, doors, windows, tire status
+   - See `internal/rivian/websocket.go` for full query structure
+   - Updates come as GraphQL `data` messages with partial state changes
+   - Apply updates through state reducer for consistency
+
+**Known Limitations**:
+- WebSocket connection is unreliable and may fail to establish (Rivian server-side issues)
+- TUI implements graceful fallback - continues functioning without real-time updates
+- Users can manually refresh with 'r' key when WebSocket is unavailable
+
+See [RivDocs Subscriptions](https://rivian-api.kaedenb.org/app/vehicle-info/subscriptions/) for complete subscription list.
 
 ### Common API Pitfalls
 
@@ -382,16 +405,108 @@ Based on real-world testing, these are the most common issues:
 
 **Fix**: Store the email from the initial `Authenticate()` call and pass it to `SubmitOTP()`.
 
-### WebSocket Subscriptions
+## TUI (Terminal User Interface)
 
-**IMPLEMENTED** in `internal/rivian/websocket.go` for real-time vehicle state updates.
+### Overview
 
-#### Connection Details
+The TUI is built using [Bubble Tea](https://github.com/charmbracelet/bubbletea) (Elm architecture) and [Lip Gloss](https://github.com/charmbracelet/lipgloss) (styling).
 
-- **Endpoint**: `wss://rivian.com/api/gql/gateway/graphql`
-- **Protocol**: GraphQL WebSocket (`graphql-ws`)
-- **Required headers**: Same as HTTPS (`apollographql-client-name`, `a-sess`, `csrf-token`, `u-sess`)
-- **Subprotocol**: `Sec-WebSocket-Protocol: graphql-ws`
+**Key features**:
+- Real-time updates via WebSocket (with graceful degradation to manual refresh)
+- Three main views: Dashboard, Charge, Health
+- Keyboard navigation ([1]/[2]/[3] for views, [r] for refresh, [q] to quit)
+- Alt-screen mode (preserves terminal on exit)
+
+### Dashboard View
+
+Displays vehicle overview in three-column layout:
+
+**Left Column**:
+- Battery & Range section with visual battery bar
+- Charging section with status (Complete, Charging, Disconnected, etc.)
+
+**Middle Column**:
+- Security section (lock status, doors, windows)
+- Tire Status section (OK/Low/High for each tire)
+
+**Right Column**:
+- Climate & Travel section (temperature, odometer, location)
+- Battery Stats section (calculated capacity, efficiency, mi/kWh, mi/%)
+
+### Calculated Metrics
+
+Since the Rivian API doesn't expose all desired metrics, we calculate them:
+
+#### Battery Capacity
+
+Formula: `capacity = (rangeEstimate / batteryLevel) * 100 * efficiency`
+
+Where efficiency is:
+- R1T: 2.0 mi/kWh (typical average)
+- R1S: 2.1 mi/kWh (slightly better due to aerodynamics)
+
+#### Current Energy
+
+Formula: `currentEnergy = batteryLevel / 100.0 * batteryCapacity`
+
+#### Efficiency Rating
+
+Formula: `efficiency = rangeEstimate / currentEnergy` (in mi/kWh)
+
+#### Miles per Percent
+
+Formula: `miPerPercent = rangeEstimate / batteryLevel`
+
+### Color Coding
+
+The TUI uses color to provide quick visual feedback:
+
+**Battery/Range**:
+- Green: ≥50 miles (normal)
+- Yellow: <50 miles (low)
+- Red: <25 miles (critical)
+
+**Tire Status**:
+- Green: OK
+- Yellow: Low
+- Orange: High
+- Gray: Unknown
+
+**Temperature**:
+- Green: 60-80°F (comfortable)
+- Yellow: 40-60°F or 80-90°F (less comfortable)
+- Red: <40°F or >90°F (extreme)
+
+**Charge Status**:
+- Green: Charging, Complete
+- Yellow: Scheduled
+- Gray: Disconnected, Not Charging, Unknown
+
+### Graceful Degradation
+
+The TUI is designed to handle API limitations:
+
+1. **WebSocket failures**: If WebSocket connection fails, TUI continues with manual refresh only
+2. **Missing tire PSI values**: Shows status (OK/Low) instead of actual pressure
+3. **Missing battery capacity**: Calculates from available data
+4. **Offline mode**: Shows last known state from local cache
+
+### Implementation Notes
+
+**Footer Black Box Issue**: The footer width calculation must account for padding:
+```go
+availableWidth := m.width - 2  // Subtract padding
+footerStyle.Width(availableWidth).Padding(0, 1)
+```
+
+**Format Verb Errors**: Avoid nested formatting with styled strings:
+```go
+// WRONG: Creates format errors like %!d(string=70)%
+valueStyle.Render(fmt.Sprintf("%d", value))
+
+// RIGHT: Format the full string including units
+valueStyle.Render(fmt.Sprintf("%d%%", value))
+```
 
 #### Message Flow
 
