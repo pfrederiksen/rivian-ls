@@ -2,9 +2,17 @@ package main
 
 import (
 	"bytes"
+	"errors"
 	"strings"
 	"testing"
 )
+
+// errorWriter always returns an error when Write is called
+type errorWriter struct{}
+
+func (e *errorWriter) Write(p []byte) (n int, err error) {
+	return 0, errors.New("write error")
+}
 
 func TestPrintVersion(t *testing.T) {
 	tests := []struct {
@@ -76,6 +84,14 @@ func TestPrintVersion(t *testing.T) {
 	}
 }
 
+func TestPrintVersionError(t *testing.T) {
+	ew := &errorWriter{}
+	err := printVersion(ew)
+	if err == nil {
+		t.Error("Expected error when writer fails, got nil")
+	}
+}
+
 func TestRun(t *testing.T) {
 	tests := []struct {
 		name           string
@@ -117,5 +133,55 @@ func TestRun(t *testing.T) {
 				t.Errorf("Expected output to contain %q, got: %s", tt.expectedOutput, output)
 			}
 		})
+	}
+}
+
+func TestRunVersionError(t *testing.T) {
+	ew := &errorWriter{}
+	exitCode := run([]string{"rivian-ls", "version"}, ew)
+	if exitCode != 1 {
+		t.Errorf("Expected exit code 1 on version error, got %d", exitCode)
+	}
+}
+
+func TestRunOkError(t *testing.T) {
+	ew := &errorWriter{}
+	exitCode := run([]string{"rivian-ls"}, ew)
+	if exitCode != 1 {
+		t.Errorf("Expected exit code 1 on write error, got %d", exitCode)
+	}
+}
+
+func TestPrintVersionCommitError(t *testing.T) {
+	// Save original values
+	origVersion, origCommit, origDate := version, commit, date
+	defer func() {
+		version, commit, date = origVersion, origCommit, origDate
+	}()
+
+	// Set values so commit branch is taken
+	version, commit, date = "v1.0.0", "abc123", "unknown"
+
+	ew := &errorWriter{}
+	err := printVersion(ew)
+	if err == nil {
+		t.Error("Expected error when writer fails on version line, got nil")
+	}
+}
+
+func TestPrintVersionDateError(t *testing.T) {
+	// Save original values
+	origVersion, origCommit, origDate := version, commit, date
+	defer func() {
+		version, commit, date = origVersion, origCommit, origDate
+	}()
+
+	// Set values so date branch is taken
+	version, commit, date = "v1.0.0", "none", "2026-01-14"
+
+	ew := &errorWriter{}
+	err := printVersion(ew)
+	if err == nil {
+		t.Error("Expected error when writer fails, got nil")
 	}
 }
