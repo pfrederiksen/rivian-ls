@@ -141,11 +141,12 @@ type TirePressures struct {
 }
 
 // AnyLow returns true if any tire is below the threshold (typically 30 PSI).
+// Returns false if pressure data is unavailable (PSI = 0).
 func (t TirePressures) AnyLow(threshold float64) bool {
-	return t.FrontLeft < threshold ||
-		t.FrontRight < threshold ||
-		t.RearLeft < threshold ||
-		t.RearRight < threshold
+	return (t.FrontLeft > 0 && t.FrontLeft < threshold) ||
+		(t.FrontRight > 0 && t.FrontRight < threshold) ||
+		(t.RearLeft > 0 && t.RearLeft < threshold) ||
+		(t.RearRight > 0 && t.RearRight < threshold)
 }
 
 // AnyStatusLow returns true if any tire has a "low" status.

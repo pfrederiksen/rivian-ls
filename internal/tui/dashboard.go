@@ -369,7 +369,7 @@ func (v *DashboardView) renderVehicleInfo(state *model.VehicleState, sectionStyl
 		)
 
 		// Calculate efficiency (mi/kWh)
-		if state.RangeEstimate > 0 {
+		if state.RangeEstimate > 0 && currentEnergy > 0 {
 			efficiency := state.RangeEstimate / currentEnergy
 			content += fmt.Sprintf("%s %s\n\n",
 				labelStyle.Render("Efficiency:"),
@@ -377,12 +377,14 @@ func (v *DashboardView) renderVehicleInfo(state *model.VehicleState, sectionStyl
 			)
 		}
 
-		// Calculate mi/%
-		milesPerPercent := state.RangeEstimate / state.BatteryLevel
-		content += fmt.Sprintf("%s %s",
-			labelStyle.Render("mi/%:"),
-			valueStyle.Render(fmt.Sprintf("%.2f mi/%%", milesPerPercent)),
-		)
+		// Calculate mi/% - avoid division by zero
+		if state.BatteryLevel > 0 {
+			milesPerPercent := state.RangeEstimate / state.BatteryLevel
+			content += fmt.Sprintf("%s %s",
+				labelStyle.Render("mi/%:"),
+				valueStyle.Render(fmt.Sprintf("%.2f mi/%%", milesPerPercent)),
+			)
+		}
 	}
 
 	return sectionStyle.Width(30).Render("⚡ Battery Stats\n\n" + content)

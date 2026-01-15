@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -350,6 +351,7 @@ type VehicleStateSubscription struct {
 	client     *WebSocketClient
 	vehicleID  string
 	updateChan chan map[string]interface{}
+	closed     atomic.Bool
 }
 
 // SubscribeToVehicleState creates a subscription for vehicle state updates
@@ -379,6 +381,10 @@ func SubscribeToVehicleState(ctx context.Context, client *WebSocketClient, vehic
 	}
 
 	callback := func(data map[string]interface{}) {
+		// Check if subscription is closed before sending
+		if subscription.closed.Load() {
+			return
+		}
 		select {
 		case subscription.updateChan <- data:
 		default:
@@ -401,9 +407,16 @@ func (s *VehicleStateSubscription) Updates() <-chan map[string]interface{} {
 
 // Close closes the subscription
 func (s *VehicleStateSubscription) Close() error {
+	// Set closed flag first to prevent new sends
+	s.closed.Store(true)
+
 	if err := s.client.Unsubscribe(fmt.Sprintf("vehicle-state-%s", s.vehicleID)); err != nil {
 		return err
 	}
+
+	// Small delay to allow in-flight callbacks to complete
+	time.Sleep(10 * time.Millisecond)
+
 	close(s.updateChan)
 	return nil
 }
