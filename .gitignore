@@ -43,3 +43,4 @@ Thumbs.db
 *.db
 rivian-ls.yaml
 rivian-ls.yml
+coverage-filtered.txt
