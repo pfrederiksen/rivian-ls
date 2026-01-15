@@ -8,7 +8,6 @@ import (
 	"io"
 	"os"
 	"strings"
-	"syscall"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -216,7 +215,7 @@ func authenticate(ctx context.Context, client *rivian.HTTPClient, credCache *aut
 		// Prompt for password if not provided
 		if *password == "" {
 			fmt.Print("Password: ")
-			passBytes, err := term.ReadPassword(syscall.Stdin)
+			passBytes, err := term.ReadPassword(int(os.Stdin.Fd()))
 			fmt.Println()
 			if err != nil {
 				return fmt.Errorf("failed to read password: %w", err)
