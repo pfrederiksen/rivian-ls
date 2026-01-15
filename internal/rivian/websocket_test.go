@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -18,6 +20,8 @@ type mockWebSocketServer struct {
 	upgrader websocket.Upgrader
 	messages chan WebSocketMessage
 	clients  []*websocket.Conn
+	mu       sync.Mutex // protects clients
+	writeMu  sync.Mutex // protects websocket writes
 }
 
 func newMockWebSocketServer() *mockWebSocketServer {
@@ -35,7 +39,9 @@ func newMockWebSocketServer() *mockWebSocketServer {
 		if err != nil {
 			return
 		}
+		mock.mu.Lock()
 		mock.clients = append(mock.clients, conn)
+		mock.mu.Unlock()
 		mock.handleConnection(conn)
 	}))
 
@@ -58,7 +64,7 @@ func (m *mockWebSocketServer) handleConnection(conn *websocket.Conn) {
 		case "connection_init":
 			// Send connection_ack
 			ack := WebSocketMessage{Type: "connection_ack"}
-			if err := conn.WriteJSON(ack); err != nil {
+			if err := m.writeJSON(conn, ack); err != nil {
 				return
 			}
 
@@ -81,7 +87,7 @@ func (m *mockWebSocketServer) handleConnection(conn *websocket.Conn) {
 						},
 					},
 				}
-				conn.WriteJSON(data)
+				m.writeJSON(conn, data)
 			}()
 
 		case "stop":
@@ -90,7 +96,7 @@ func (m *mockWebSocketServer) handleConnection(conn *websocket.Conn) {
 				ID:   msg.ID,
 				Type: "complete",
 			}
-			if err := conn.WriteJSON(complete); err != nil {
+			if err := m.writeJSON(conn, complete); err != nil {
 				return
 			}
 
@@ -100,8 +106,19 @@ func (m *mockWebSocketServer) handleConnection(conn *websocket.Conn) {
 	}
 }
 
+func (m *mockWebSocketServer) writeJSON(conn *websocket.Conn, v interface{}) error {
+	m.writeMu.Lock()
+	defer m.writeMu.Unlock()
+	return conn.WriteJSON(v)
+}
+
 func (m *mockWebSocketServer) close() {
-	for _, conn := range m.clients {
+	m.mu.Lock()
+	clients := make([]*websocket.Conn, len(m.clients))
+	copy(clients, m.clients)
+	m.mu.Unlock()
+
+	for _, conn := range clients {
 		conn.Close()
 	}
 	m.server.Close()
@@ -225,9 +242,9 @@ func TestWebSocketClient_Subscribe(t *testing.T) {
 	go client.messageLoop()
 
 	// Subscribe
-	callbackCalled := false
+	var callbackCalled atomic.Bool
 	callback := func(data map[string]interface{}) {
-		callbackCalled = true
+		callbackCalled.Store(true)
 	}
 
 	query := "subscription { test }"
@@ -268,7 +285,7 @@ func TestWebSocketClient_Subscribe(t *testing.T) {
 	// Wait for mock data message
 	time.Sleep(100 * time.Millisecond)
 
-	if !callbackCalled {
+	if !callbackCalled.Load() {
 		t.Error("Callback was not called")
 	}
 
