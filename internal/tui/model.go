@@ -314,7 +314,7 @@ func (m *Model) subscribeToUpdates() tea.Cmd {
 				return
 			}
 
-			defer subscription.Close()
+			defer func() { _ = subscription.Close() }()
 
 			for {
 				select {

@@ -88,7 +88,7 @@ func (c *StatusCommand) Run(ctx context.Context, opts StatusOptions) error {
 		if c.store != nil {
 			if err := c.store.SaveState(ctx, state); err != nil {
 				// Non-fatal: log error but continue
-				fmt.Fprintf(os.Stderr, "Warning: Failed to save state: %v\n", err)
+				_, _ = fmt.Fprintf(os.Stderr, "Warning: Failed to save state: %v\n", err)
 			}
 		}
 	}

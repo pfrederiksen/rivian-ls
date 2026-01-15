@@ -70,7 +70,7 @@ func (c *ExportCommand) Run(ctx context.Context, opts ExportOptions) error {
 	}
 
 	if len(states) == 0 {
-		fmt.Fprintln(c.output, "No states found for the specified time range")
+		_, _ = fmt.Fprintln(c.output, "No states found for the specified time range")
 		return nil
 	}
 

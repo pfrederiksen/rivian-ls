@@ -102,7 +102,7 @@ func TestStatusCommand_Run(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewStore failed: %v", err)
 	}
-	defer testStore.Close()
+	defer func() { _ = testStore.Close() }()
 
 	mockState := makeMockRivianState()
 	client := &mockClient{state: mockState}
@@ -137,7 +137,7 @@ func TestStatusCommand_Run_Offline(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewStore failed: %v", err)
 	}
-	defer testStore.Close()
+	defer func() { _ = testStore.Close() }()
 
 	// Save a state to the store first
 	ctx := context.Background()
@@ -201,7 +201,7 @@ func TestExportCommand_Run(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewStore failed: %v", err)
 	}
-	defer testStore.Close()
+	defer func() { _ = testStore.Close() }()
 
 	// Save some states
 	ctx := context.Background()
@@ -273,7 +273,7 @@ func TestExportCommand_Run_EmptyResults(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewStore failed: %v", err)
 	}
-	defer testStore.Close()
+	defer func() { _ = testStore.Close() }()
 
 	var buf bytes.Buffer
 	cmd := NewExportCommand(testStore, "vehicle-999", &buf)
@@ -302,7 +302,7 @@ func TestExportCommand_Run_RangeQuery(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewStore failed: %v", err)
 	}
-	defer testStore.Close()
+	defer func() { _ = testStore.Close() }()
 
 	// Save states spanning a time range
 	ctx := context.Background()

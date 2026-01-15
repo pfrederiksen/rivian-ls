@@ -224,7 +224,7 @@ func (s *Store) GetStateHistory(ctx context.Context, vehicleID string, since tim
 	if err != nil {
 		return nil, fmt.Errorf("query history: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var states []*model.VehicleState
 	for rows.Next() {
@@ -261,7 +261,7 @@ func (s *Store) GetStates(ctx context.Context, vehicleID string, start, end time
 	if err != nil {
 		return nil, fmt.Errorf("query states: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var states []*model.VehicleState
 	for rows.Next() {

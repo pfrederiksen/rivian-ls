@@ -162,7 +162,7 @@ func main() {
 		fmt.Printf("Failed to create store: %v\n", err)
 		os.Exit(1)
 	}
-	defer testStore.Close()
+	defer func() { _ = testStore.Close() }()
 
 	// Parse format
 	outputFormat := cli.OutputFormat(*format)

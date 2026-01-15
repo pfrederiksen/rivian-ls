@@ -126,14 +126,14 @@ func (f *CSVFormatter) FormatStates(w io.Writer, states []*model.VehicleState) e
 type TextFormatter struct{}
 
 func (f *TextFormatter) FormatState(w io.Writer, state *model.VehicleState) error {
-	fmt.Fprintf(w, "Vehicle: %s (%s)\n", state.Name, state.Model)
-	fmt.Fprintf(w, "VIN: %s\n", state.VIN)
-	fmt.Fprintf(w, "Status: %s\n", formatOnlineStatus(state.IsOnline))
-	fmt.Fprintf(w, "Updated: %s\n", state.UpdatedAt.Format(time.RFC3339))
-	fmt.Fprintf(w, "\n")
+	_, _ = fmt.Fprintf(w, "Vehicle: %s (%s)\n", state.Name, state.Model)
+	_, _ = fmt.Fprintf(w, "VIN: %s\n", state.VIN)
+	_, _ = fmt.Fprintf(w, "Status: %s\n", formatOnlineStatus(state.IsOnline))
+	_, _ = fmt.Fprintf(w, "Updated: %s\n", state.UpdatedAt.Format(time.RFC3339))
+	_, _ = fmt.Fprintf(w, "\n")
 
 	// Battery & Range
-	fmt.Fprintf(w, "Battery: %.1f%% | Range: %.0f miles (%s)\n",
+	_, _ = fmt.Fprintf(w, "Battery: %.1f%% | Range: %.0f miles (%s)\n",
 		state.BatteryLevel, state.RangeEstimate, state.RangeStatus)
 
 	// Charging
@@ -147,15 +147,15 @@ func (f *TextFormatter) FormatState(w io.Writer, state *model.VehicleState) erro
 			remaining := state.TimeToCharge.Sub(state.UpdatedAt)
 			timeToCharge = fmt.Sprintf(" (%s remaining)", formatDuration(remaining))
 		}
-		fmt.Fprintf(w, "Charging: %s%s%s\n", state.ChargeState, rate, timeToCharge)
+		_, _ = fmt.Fprintf(w, "Charging: %s%s%s\n", state.ChargeState, rate, timeToCharge)
 	} else {
-		fmt.Fprintf(w, "Charging: %s | Limit: %d%%\n", state.ChargeState, state.ChargeLimit)
+		_, _ = fmt.Fprintf(w, "Charging: %s | Limit: %d%%\n", state.ChargeState, state.ChargeLimit)
 	}
-	fmt.Fprintf(w, "\n")
+	_, _ = fmt.Fprintf(w, "\n")
 
 	// Security & Closures
-	fmt.Fprintf(w, "Lock: %s\n", formatLockStatus(state.IsLocked))
-	fmt.Fprintf(w, "Doors: %s | Windows: %s\n",
+	_, _ = fmt.Fprintf(w, "Lock: %s\n", formatLockStatus(state.IsLocked))
+	_, _ = fmt.Fprintf(w, "Doors: %s | Windows: %s\n",
 		formatClosures(state.Doors), formatClosures(state.Windows))
 
 	// Only show closures if known
@@ -176,46 +176,46 @@ func (f *TextFormatter) FormatState(w io.Writer, state *model.VehicleState) erro
 		closureLine += fmt.Sprintf("Tonneau: %s", *state.TonneauCover)
 	}
 	if closureLine != "" {
-		fmt.Fprintf(w, "%s\n", closureLine)
+		_, _ = fmt.Fprintf(w, "%s\n", closureLine)
 	}
-	fmt.Fprintf(w, "\n")
+	_, _ = fmt.Fprintf(w, "\n")
 
 	// Climate
 	if state.CabinTemp != nil || state.ExteriorTemp != nil {
-		fmt.Fprintf(w, "Temperature: ")
+		_, _ = fmt.Fprintf(w, "Temperature: ")
 		if state.CabinTemp != nil {
-			fmt.Fprintf(w, "Cabin %.1f°F", *state.CabinTemp)
+			_, _ = fmt.Fprintf(w, "Cabin %.1f°F", *state.CabinTemp)
 		}
 		if state.ExteriorTemp != nil {
 			if state.CabinTemp != nil {
-				fmt.Fprintf(w, " | ")
+				_, _ = fmt.Fprintf(w, " | ")
 			}
-			fmt.Fprintf(w, "Exterior %.1f°F", *state.ExteriorTemp)
+			_, _ = fmt.Fprintf(w, "Exterior %.1f°F", *state.ExteriorTemp)
 		}
-		fmt.Fprintf(w, "\n")
+		_, _ = fmt.Fprintf(w, "\n")
 	}
 
 	// Location
 	if state.Location != nil {
-		fmt.Fprintf(w, "Location: %.4f°N, %.4f°W\n",
+		_, _ = fmt.Fprintf(w, "Location: %.4f°N, %.4f°W\n",
 			state.Location.Latitude, state.Location.Longitude)
 	}
 
 	// Odometer
-	fmt.Fprintf(w, "Odometer: %.1f miles\n", state.Odometer)
-	fmt.Fprintf(w, "\n")
+	_, _ = fmt.Fprintf(w, "Odometer: %.1f miles\n", state.Odometer)
+	_, _ = fmt.Fprintf(w, "\n")
 
 	// Ready Score
 	if state.ReadyScore != nil {
-		fmt.Fprintf(w, "Ready Score: %.1f/100\n", *state.ReadyScore)
+		_, _ = fmt.Fprintf(w, "Ready Score: %.1f/100\n", *state.ReadyScore)
 	}
 
 	// Issues
 	issues := state.GetIssues()
 	if len(issues) > 0 {
-		fmt.Fprintf(w, "\nIssues:\n")
+		_, _ = fmt.Fprintf(w, "\nIssues:\n")
 		for _, issue := range issues {
-			fmt.Fprintf(w, "  • %s\n", issue)
+			_, _ = fmt.Fprintf(w, "  • %s\n", issue)
 		}
 	}
 
@@ -225,7 +225,7 @@ func (f *TextFormatter) FormatState(w io.Writer, state *model.VehicleState) erro
 func (f *TextFormatter) FormatStates(w io.Writer, states []*model.VehicleState) error {
 	for i, state := range states {
 		if i > 0 {
-			fmt.Fprintf(w, "\n---\n\n")
+			_, _ = fmt.Fprintf(w, "\n---\n\n")
 		}
 		if err := f.FormatState(w, state); err != nil {
 			return err
@@ -243,19 +243,19 @@ func (f *TableFormatter) FormatState(w io.Writer, state *model.VehicleState) err
 
 func (f *TableFormatter) FormatStates(w io.Writer, states []*model.VehicleState) error {
 	if len(states) == 0 {
-		fmt.Fprintf(w, "No states to display\n")
+		_, _ = fmt.Fprintf(w, "No states to display\n")
 		return nil
 	}
 
 	// Header
-	fmt.Fprintf(w, "%-19s  %-8s  %-6s  %-5s  %-10s  %s\n",
+	_, _ = fmt.Fprintf(w, "%-19s  %-8s  %-6s  %-5s  %-10s  %s\n",
 		"TIMESTAMP", "BATTERY", "RANGE", "LOCK", "CHARGING", "STATUS")
-	fmt.Fprintf(w, "%-19s  %-8s  %-6s  %-5s  %-10s  %s\n",
+	_, _ = fmt.Fprintf(w, "%-19s  %-8s  %-6s  %-5s  %-10s  %s\n",
 		"-------------------", "--------", "------", "-----", "----------", "------")
 
 	// Rows
 	for _, state := range states {
-		fmt.Fprintf(w, "%-19s  %6.1f%%  %5.0fmi  %-5s  %-10s  %s\n",
+		_, _ = fmt.Fprintf(w, "%-19s  %6.1f%%  %5.0fmi  %-5s  %-10s  %s\n",
 			state.UpdatedAt.Format("2006-01-02 15:04:05"),
 			state.BatteryLevel,
 			state.RangeEstimate,

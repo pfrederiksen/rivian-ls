@@ -59,7 +59,7 @@ func (c *WatchCommand) Run(ctx context.Context, opts WatchOptions) error {
 
 	go func() {
 		<-sigCh
-		fmt.Fprintln(os.Stderr, "\nShutting down...")
+		_, _ = fmt.Fprintln(os.Stderr, "\nShutting down...")
 		cancel()
 	}()
 
@@ -89,7 +89,7 @@ func (c *WatchCommand) runPolling(ctx context.Context, formatter Formatter, inte
 			return nil
 		case <-ticker.C:
 			if err := c.fetchAndOutput(ctx, formatter); err != nil {
-				fmt.Fprintf(os.Stderr, "Error fetching state: %v\n", err)
+				_, _ = fmt.Fprintf(os.Stderr, "Error fetching state: %v\n", err)
 				// Continue polling despite errors
 			}
 		}
@@ -116,16 +116,16 @@ func (c *WatchCommand) runWebSocket(ctx context.Context, formatter Formatter) er
 	if err := wsClient.Connect(ctx); err != nil {
 		return fmt.Errorf("connect websocket: %w", err)
 	}
-	defer wsClient.Close()
+	defer func() { _ = wsClient.Close() }()
 
 	// Subscribe to vehicle state updates
 	subscription, err := rivian.SubscribeToVehicleState(ctx, wsClient, c.vehicleID)
 	if err != nil {
 		return fmt.Errorf("subscribe to vehicle state: %w", err)
 	}
-	defer subscription.Close()
+	defer func() { _ = subscription.Close() }()
 
-	fmt.Fprintln(os.Stderr, "Watching for updates... (Press Ctrl+C to stop)")
+	_, _ = fmt.Fprintln(os.Stderr, "Watching for updates... (Press Ctrl+C to stop)")
 
 	// Get initial state via HTTP
 	if err := c.fetchAndOutput(ctx, formatter); err != nil {
@@ -193,13 +193,13 @@ func (c *WatchCommand) runWebSocket(ctx context.Context, formatter Formatter) er
 
 			// Output updated state
 			if err := formatter.FormatState(c.output, state); err != nil {
-				fmt.Fprintf(os.Stderr, "Error formatting state: %v\n", err)
+				_, _ = fmt.Fprintf(os.Stderr, "Error formatting state: %v\n", err)
 			}
 
 			// Save to store
 			if c.store != nil {
 				if err := c.store.SaveState(ctx, state); err != nil {
-					fmt.Fprintf(os.Stderr, "Warning: Failed to save state: %v\n", err)
+					_, _ = fmt.Fprintf(os.Stderr, "Warning: Failed to save state: %v\n", err)
 				}
 			}
 		}

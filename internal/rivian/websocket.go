@@ -61,7 +61,12 @@ func NewWebSocketClient(credentials *Credentials, csrfToken, appSessionID string
 func (c *WebSocketClient) Connect(ctx context.Context) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	return c.connectUnlocked(ctx)
+}
 
+// connectUnlocked establishes the WebSocket connection without acquiring the lock
+// Caller must hold c.mu
+func (c *WebSocketClient) connectUnlocked(ctx context.Context) error {
 	if c.conn != nil {
 		return fmt.Errorf("already connected")
 	}
@@ -289,7 +294,7 @@ func (c *WebSocketClient) handleDisconnect() {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	if err := c.Connect(ctx); err != nil {
+	if err := c.connectUnlocked(ctx); err != nil {
 		// Reconnect failed, will try again on next disconnect
 		return
 	}
