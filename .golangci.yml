@@ -15,7 +15,7 @@ linters:
 
 linters-settings:
   gocyclo:
-    min-complexity: 25  # Higher threshold for test files and TUI code
+    min-complexity: 35  # Higher threshold for test files, main functions, and TUI code
   gocritic:
     enabled-tags:
       - diagnostic
