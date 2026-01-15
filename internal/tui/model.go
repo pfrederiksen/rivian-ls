@@ -319,7 +319,7 @@ func (m *Model) subscribeToUpdates() tea.Cmd {
 			for {
 				select {
 				case <-m.ctx.Done():
-					wsClient.Close()
+					_ = wsClient.Close()
 					return
 
 				case update := <-subscription.Updates():
