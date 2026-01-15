@@ -1,8 +1,6 @@
 # GoReleaser configuration for rivian-ls
 # Documentation: https://goreleaser.com
 
-version: 2
-
 before:
   hooks:
     # Run tests before building
