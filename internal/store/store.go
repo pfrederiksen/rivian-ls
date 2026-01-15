@@ -25,7 +25,7 @@ func NewStore(dbPath string) (*Store, error) {
 
 	// Enable Write-Ahead Logging for better concurrency
 	if _, err := db.Exec("PRAGMA journal_mode=WAL"); err != nil {
-		db.Close()
+		_ = db.Close()
 		return nil, fmt.Errorf("enable WAL: %w", err)
 	}
 

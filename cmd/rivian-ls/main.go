@@ -172,7 +172,7 @@ func authenticate(ctx context.Context, client *rivian.HTTPClient, credCache *aut
 						needsAuth = false
 						// Save refreshed credentials
 						if creds := client.GetCredentials(); creds != nil {
-							credCache.Save(*email, creds)
+							_ = credCache.Save(*email, creds)
 						}
 					}
 				}

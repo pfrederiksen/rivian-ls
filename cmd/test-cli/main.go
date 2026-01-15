@@ -78,7 +78,7 @@ func main() {
 						needsAuth = false
 						// Save refreshed credentials
 						if creds := client.GetCredentials(); creds != nil {
-							credCache.Save(*email, creds)
+							_ = credCache.Save(*email, creds)
 						}
 						fmt.Println("✓ Authenticated (token refreshed)")
 					}

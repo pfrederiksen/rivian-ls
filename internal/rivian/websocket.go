@@ -110,7 +110,7 @@ func (c *WebSocketClient) connectUnlocked(ctx context.Context) error {
 	}
 
 	if err := c.writeMessage(initMsg); err != nil {
-		conn.Close()
+		_ = conn.Close()
 		c.conn = nil
 		return fmt.Errorf("send connection_init: %w", err)
 	}
