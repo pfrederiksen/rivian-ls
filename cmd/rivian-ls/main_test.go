@@ -64,7 +64,9 @@ func TestPrintVersion(t *testing.T) {
 			version, commit, date = tt.version, tt.commit, tt.date
 
 			var buf bytes.Buffer
-			printVersion(&buf)
+			if err := printVersion(&buf); err != nil {
+				t.Fatalf("printVersion failed: %v", err)
+			}
 
 			output := buf.String()
 			for _, expected := range tt.expectedContent {
