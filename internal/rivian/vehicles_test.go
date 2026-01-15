@@ -187,6 +187,26 @@ func TestGetVehicleState_Success(t *testing.T) {
 						"timeStamp":  timestamp,
 						"value":      "closed",
 					},
+					"doorRearLeftLocked": map[string]interface{}{
+						"__typename": "DoorStatus",
+						"timeStamp":  timestamp,
+						"value":      "locked",
+					},
+					"doorRearLeftClosed": map[string]interface{}{
+						"__typename": "DoorStatus",
+						"timeStamp":  timestamp,
+						"value":      "closed",
+					},
+					"doorRearRightLocked": map[string]interface{}{
+						"__typename": "DoorStatus",
+						"timeStamp":  timestamp,
+						"value":      "locked",
+					},
+					"doorRearRightClosed": map[string]interface{}{
+						"__typename": "DoorStatus",
+						"timeStamp":  timestamp,
+						"value":      "closed",
+					},
 					"closureFrunkClosed": map[string]interface{}{
 						"__typename": "ClosureStatus",
 						"timeStamp":  timestamp,

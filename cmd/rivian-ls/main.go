@@ -75,7 +75,7 @@ func run(args []string) int {
 
 		// Ensure directory exists
 		dbDir := home + "/.local/share/rivian-ls"
-		if err := os.MkdirAll(dbDir, 0755); err != nil {
+		if err := os.MkdirAll(dbDir, 0750); err != nil {
 			_, _ = fmt.Fprintf(os.Stderr, "Error creating database directory: %v\n", err)
 			return 1
 		}
@@ -185,7 +185,7 @@ func authenticate(ctx context.Context, client *rivian.HTTPClient, credCache *aut
 		// Prompt for password if not provided
 		if *password == "" {
 			fmt.Print("Password: ")
-			passBytes, err := term.ReadPassword(int(syscall.Stdin))
+			passBytes, err := term.ReadPassword(syscall.Stdin)
 			fmt.Println()
 			if err != nil {
 				return fmt.Errorf("failed to read password: %w", err)

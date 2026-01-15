@@ -337,20 +337,7 @@ func parseVehicleState(vehicleID string, apiState vehicleStateData) *VehicleStat
 	}
 
 	// Determine if locked (all doors locked)
-	allLocked := true
-	if apiState.DoorFrontLeftLocked != nil && apiState.DoorFrontLeftLocked.Value != "locked" {
-		allLocked = false
-	}
-	if apiState.DoorFrontRightLocked != nil && apiState.DoorFrontRightLocked.Value != "locked" {
-		allLocked = false
-	}
-	if apiState.DoorRearLeftLocked != nil && apiState.DoorRearLeftLocked.Value != "locked" {
-		allLocked = false
-	}
-	if apiState.DoorRearRightLocked != nil && apiState.DoorRearRightLocked.Value != "locked" {
-		allLocked = false
-	}
-	state.IsLocked = allLocked
+	state.IsLocked = areAllDoorsLocked(apiState)
 
 	// Assume online if we have recent data
 	state.IsOnline = true
@@ -406,6 +393,18 @@ func parseVehicleState(vehicleID string, apiState vehicleStateData) *VehicleStat
 	return state
 }
 
+// areAllDoorsLocked checks if all four doors are locked
+func areAllDoorsLocked(apiState vehicleStateData) bool {
+	isDoorLocked := func(door *timestampedValue[string]) bool {
+		return door != nil && door.Value == "locked"
+	}
+
+	return isDoorLocked(apiState.DoorFrontLeftLocked) &&
+		isDoorLocked(apiState.DoorFrontRightLocked) &&
+		isDoorLocked(apiState.DoorRearLeftLocked) &&
+		isDoorLocked(apiState.DoorRearRightLocked)
+}
+
 // parseChargeState converts API charge status string to ChargeState enum.
 func parseChargeState(status string) ChargeState {
 	switch status {
@@ -429,16 +428,6 @@ func parseChargeState(status string) ChargeState {
 	}
 }
 
-// parseClosureState creates a ClosureState from individual closure statuses.
-func parseClosureState(fl, fr, rl, rr *string) ClosureState {
-	return ClosureState{
-		FrontLeft:  parseClosureStatus(fl),
-		FrontRight: parseClosureStatus(fr),
-		RearLeft:   parseClosureStatus(rl),
-		RearRight:  parseClosureStatus(rr),
-	}
-}
-
 // parseClosureStatus converts API closure status string to ClosureStatus enum.
 func parseClosureStatus(status *string) ClosureStatus {
 	if status == nil {
@@ -452,14 +441,6 @@ func parseClosureStatus(status *string) ClosureStatus {
 	default:
 		return ClosureStatusUnknown
 	}
-}
-
-// getFloat64 safely dereferences a float64 pointer.
-func getFloat64(f *float64) float64 {
-	if f == nil {
-		return 0
-	}
-	return *f
 }
 
 // parseClosureStatusFromTimestamped converts timestamped closure status to ClosureStatus.

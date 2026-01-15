@@ -45,17 +45,18 @@ func (c *ExportCommand) Run(ctx context.Context, opts ExportOptions) error {
 	var err error
 
 	// Determine query method
-	if !opts.Since.IsZero() && !opts.Until.IsZero() {
+	switch {
+	case !opts.Since.IsZero() && !opts.Until.IsZero():
 		// Range query
 		states, err = c.store.GetStates(ctx, c.vehicleID, opts.Since, opts.Until)
-	} else if !opts.Since.IsZero() {
+	case !opts.Since.IsZero():
 		// History query with limit
 		limit := opts.Limit
 		if limit == 0 {
 			limit = 1000 // Default limit
 		}
 		states, err = c.store.GetStateHistory(ctx, c.vehicleID, opts.Since, limit)
-	} else {
+	default:
 		// Get all recent states
 		limit := opts.Limit
 		if limit == 0 {

@@ -27,17 +27,17 @@ func main() {
 
 	if *email == "" {
 		fmt.Println("Usage: test-cli -email your@email.com [-password yourpassword]")
-		os.Exit(1)
+		return
 	}
 
 	// Prompt for password if not provided
 	if *password == "" {
 		fmt.Print("Password: ")
-		passBytes, err := term.ReadPassword(int(syscall.Stdin))
+		passBytes, err := term.ReadPassword(syscall.Stdin)
 		fmt.Println()
 		if err != nil {
 			fmt.Printf("Error reading password: %v\n", err)
-			os.Exit(1)
+			return
 		}
 		pwd := string(passBytes)
 		password = &pwd
@@ -105,19 +105,19 @@ func main() {
 				err = client.SubmitOTP(ctx, otpCode)
 				if err != nil {
 					fmt.Printf("OTP submission failed: %v\n", err)
-					os.Exit(1)
+					return
 				}
 			} else {
 				// Real authentication error
 				fmt.Printf("Authentication failed: %v\n", err)
-				os.Exit(1)
+				return
 			}
 		}
 
 		// Verify we're authenticated
 		if !client.IsAuthenticated() {
 			fmt.Println("Authentication failed: not authenticated after login")
-			os.Exit(1)
+			return
 		}
 
 		fmt.Println("✓ Authenticated")
@@ -139,17 +139,17 @@ func main() {
 	vehicles, err := client.GetVehicles(ctx)
 	if err != nil {
 		fmt.Printf("Get vehicles failed: %v\n", err)
-		os.Exit(1)
+		return
 	}
 
 	if len(vehicles) == 0 {
 		fmt.Println("No vehicles found")
-		os.Exit(1)
+		return
 	}
 
 	if *vehicleIndex >= len(vehicles) {
 		fmt.Printf("Vehicle index %d out of range (have %d vehicles)\n", *vehicleIndex, len(vehicles))
-		os.Exit(1)
+		return
 	}
 
 	vehicle := vehicles[*vehicleIndex]
@@ -160,7 +160,7 @@ func main() {
 	testStore, err := store.NewStore(*dbPath)
 	if err != nil {
 		fmt.Printf("Failed to create store: %v\n", err)
-		os.Exit(1)
+		return
 	}
 	defer func() { _ = testStore.Close() }()
 
@@ -179,7 +179,7 @@ func main() {
 	err = statusCmd.Run(ctx, statusOpts)
 	if err != nil {
 		fmt.Printf("\nError: %v\n", err)
-		os.Exit(1)
+		return
 	}
 
 	fmt.Println("\n✓ Status command succeeded (state saved to database)")
@@ -190,7 +190,7 @@ func main() {
 	err = statusCmd.Run(ctx, statusOpts)
 	if err != nil {
 		fmt.Printf("\nError: %v\n", err)
-		os.Exit(1)
+		return
 	}
 
 	fmt.Println("\n✓ Offline status command succeeded")
@@ -207,7 +207,7 @@ func main() {
 	err = exportCmd.Run(ctx, exportOpts)
 	if err != nil {
 		fmt.Printf("\nError: %v\n", err)
-		os.Exit(1)
+		return
 	}
 
 	fmt.Println("\n✓ Export command succeeded")

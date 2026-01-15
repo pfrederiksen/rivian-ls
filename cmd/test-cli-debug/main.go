@@ -28,7 +28,7 @@ func main() {
 	// Prompt for password if not provided
 	if *password == "" {
 		fmt.Print("Password: ")
-		passBytes, err := term.ReadPassword(int(syscall.Stdin))
+		passBytes, err := term.ReadPassword(syscall.Stdin)
 		fmt.Println()
 		if err != nil {
 			fmt.Printf("Error reading password: %v\n", err)

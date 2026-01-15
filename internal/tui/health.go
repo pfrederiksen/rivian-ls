@@ -149,7 +149,7 @@ func (v *HealthView) renderHealthStatus(state *model.VehicleState, sectionStyle,
 }
 
 func (v *HealthView) renderTrends(state *model.VehicleState, sectionStyle, labelStyle, valueStyle lipgloss.Style) string {
-	if v.history == nil || len(v.history) < 2 {
+	if len(v.history) < 2 {
 		return sectionStyle.Width(35).Render("📈 Trends\n\nInsufficient data for trend analysis")
 	}
 
@@ -300,7 +300,7 @@ func (v *HealthView) formatTirePressure(pressure float64, valueStyle lipgloss.St
 }
 
 func (v *HealthView) calculateTrend(metric string) float64 {
-	if v.history == nil || len(v.history) < 2 {
+	if len(v.history) < 2 {
 		return 0
 	}
 
@@ -319,11 +319,12 @@ func (v *HealthView) calculateTrend(metric string) float64 {
 }
 
 func (v *HealthView) renderTrendIndicator(change float64) string {
-	if change > 5 {
+	switch {
+	case change > 5:
 		return lipgloss.NewStyle().Foreground(lipgloss.Color("#00ff00")).Render(fmt.Sprintf("↑ +%.1f (increasing)", change))
-	} else if change < -5 {
+	case change < -5:
 		return lipgloss.NewStyle().Foreground(lipgloss.Color("#ff0000")).Render(fmt.Sprintf("↓ %.1f (decreasing)", change))
-	} else {
+	default:
 		return lipgloss.NewStyle().Foreground(lipgloss.Color("#888888")).Render("→ stable")
 	}
 }

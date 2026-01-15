@@ -253,10 +253,8 @@ func (m *Model) fetchInitialState() tea.Cmd {
 		stateEvent := model.VehicleStateReceived{State: rivState}
 		finalState := m.reducer.Dispatch(stateEvent)
 
-		// Save to store
-		if err := m.store.SaveState(m.ctx, domainState); err != nil {
-			// Silently fail - not critical for TUI operation
-		}
+		// Save to store (silently fail - not critical for TUI operation)
+		_ = m.store.SaveState(m.ctx, domainState)
 
 		return initialStateMsg{state: finalState}
 	}
@@ -333,9 +331,8 @@ func (m *Model) subscribeToUpdates() tea.Cmd {
 
 						// Save to store (if we have a complete state)
 						if finalState != nil {
-							if err := m.store.SaveState(m.ctx, finalState); err != nil {
-								// Silently fail - not critical
-							}
+							// Silently fail - not critical
+							_ = m.store.SaveState(m.ctx, finalState)
 
 							// Send to update channel
 							select {

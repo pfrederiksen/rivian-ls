@@ -10,6 +10,43 @@ import (
 	"github.com/pfrederiksen/rivian-ls/internal/model"
 )
 
+// saveTestStates is a helper to reduce duplicate test state creation
+func saveTestStates(t *testing.T, store *Store, ctx context.Context, now time.Time, count int, timeDelta time.Duration, batteryFunc func(int) float64) {
+	for i := 0; i < count; i++ {
+		state := &model.VehicleState{
+			VehicleID:     "vehicle-123",
+			VIN:           "VIN123",
+			Name:          "My R1T",
+			Model:         "R1T",
+			UpdatedAt:     now.Add(time.Duration(i) * timeDelta),
+			BatteryLevel:  batteryFunc(i),
+			RangeEstimate: 200.0,
+			ChargeState:   model.ChargeStateNotCharging,
+			RangeStatus:   model.RangeStatusNormal,
+			IsOnline:      true,
+			Doors: model.Closures{
+				FrontLeft:  model.ClosureStatusClosed,
+				FrontRight: model.ClosureStatusClosed,
+				RearLeft:   model.ClosureStatusClosed,
+				RearRight:  model.ClosureStatusClosed,
+			},
+			Windows: model.Closures{
+				FrontLeft:  model.ClosureStatusClosed,
+				FrontRight: model.ClosureStatusClosed,
+				RearLeft:   model.ClosureStatusClosed,
+				RearRight:  model.ClosureStatusClosed,
+			},
+			Frunk:         model.ClosureStatusClosed,
+			Liftgate:      model.ClosureStatusClosed,
+			TirePressures: model.TirePressures{UpdatedAt: now},
+		}
+
+		if err := store.SaveState(ctx, state); err != nil {
+			t.Fatalf("SaveState failed: %v", err)
+		}
+	}
+}
+
 func TestNewStore(t *testing.T) {
 	tmpDir := t.TempDir()
 	dbPath := filepath.Join(tmpDir, "test.db")
@@ -118,39 +155,7 @@ func TestGetLatestState(t *testing.T) {
 	now := time.Now()
 
 	// Save multiple states
-	for i := 0; i < 3; i++ {
-		state := &model.VehicleState{
-			VehicleID:    "vehicle-123",
-			VIN:          "VIN123",
-			Name:         "My R1T",
-			Model:        "R1T",
-			UpdatedAt:    now.Add(time.Duration(i) * time.Minute),
-			BatteryLevel: float64(80 + i),
-			RangeEstimate: 200.0,
-			ChargeState:  model.ChargeStateNotCharging,
-			RangeStatus:  model.RangeStatusNormal,
-			IsOnline:     true,
-			Doors: model.Closures{
-				FrontLeft:  model.ClosureStatusClosed,
-				FrontRight: model.ClosureStatusClosed,
-				RearLeft:   model.ClosureStatusClosed,
-				RearRight:  model.ClosureStatusClosed,
-			},
-			Windows: model.Closures{
-				FrontLeft:  model.ClosureStatusClosed,
-				FrontRight: model.ClosureStatusClosed,
-				RearLeft:   model.ClosureStatusClosed,
-				RearRight:  model.ClosureStatusClosed,
-			},
-			Frunk:         model.ClosureStatusClosed,
-			Liftgate:      model.ClosureStatusClosed,
-			TirePressures: model.TirePressures{UpdatedAt: now},
-		}
-
-		if err := store.SaveState(ctx, state); err != nil {
-			t.Fatalf("SaveState failed: %v", err)
-		}
-	}
+	saveTestStates(t, store, ctx, now, 3, time.Minute, func(i int) float64 { return float64(80 + i) })
 
 	// Get latest state
 	latest, err := store.GetLatestState(ctx, "vehicle-123")
@@ -212,39 +217,7 @@ func TestGetStateHistory(t *testing.T) {
 	now := time.Now()
 
 	// Save states over a time range
-	for i := 0; i < 10; i++ {
-		state := &model.VehicleState{
-			VehicleID:     "vehicle-123",
-			VIN:           "VIN123",
-			Name:          "My R1T",
-			Model:         "R1T",
-			UpdatedAt:     now.Add(time.Duration(i) * time.Hour),
-			BatteryLevel:  float64(50 + i),
-			RangeEstimate: 200.0,
-			ChargeState:   model.ChargeStateNotCharging,
-			RangeStatus:   model.RangeStatusNormal,
-			IsOnline:      true,
-			Doors: model.Closures{
-				FrontLeft:  model.ClosureStatusClosed,
-				FrontRight: model.ClosureStatusClosed,
-				RearLeft:   model.ClosureStatusClosed,
-				RearRight:  model.ClosureStatusClosed,
-			},
-			Windows: model.Closures{
-				FrontLeft:  model.ClosureStatusClosed,
-				FrontRight: model.ClosureStatusClosed,
-				RearLeft:   model.ClosureStatusClosed,
-				RearRight:  model.ClosureStatusClosed,
-			},
-			Frunk:         model.ClosureStatusClosed,
-			Liftgate:      model.ClosureStatusClosed,
-			TirePressures: model.TirePressures{UpdatedAt: now},
-		}
-
-		if err := store.SaveState(ctx, state); err != nil {
-			t.Fatalf("SaveState failed: %v", err)
-		}
-	}
+	saveTestStates(t, store, ctx, now, 10, time.Hour, func(i int) float64 { return float64(50 + i) })
 
 	// Get history since 5 hours ago, limit 3
 	since := now.Add(5 * time.Hour)
@@ -275,39 +248,7 @@ func TestGetStates(t *testing.T) {
 	now := time.Now()
 
 	// Save states
-	for i := 0; i < 10; i++ {
-		state := &model.VehicleState{
-			VehicleID:     "vehicle-123",
-			VIN:           "VIN123",
-			Name:          "My R1T",
-			Model:         "R1T",
-			UpdatedAt:     now.Add(time.Duration(i) * time.Hour),
-			BatteryLevel:  float64(50 + i),
-			RangeEstimate: 200.0,
-			ChargeState:   model.ChargeStateNotCharging,
-			RangeStatus:   model.RangeStatusNormal,
-			IsOnline:      true,
-			Doors: model.Closures{
-				FrontLeft:  model.ClosureStatusClosed,
-				FrontRight: model.ClosureStatusClosed,
-				RearLeft:   model.ClosureStatusClosed,
-				RearRight:  model.ClosureStatusClosed,
-			},
-			Windows: model.Closures{
-				FrontLeft:  model.ClosureStatusClosed,
-				FrontRight: model.ClosureStatusClosed,
-				RearLeft:   model.ClosureStatusClosed,
-				RearRight:  model.ClosureStatusClosed,
-			},
-			Frunk:         model.ClosureStatusClosed,
-			Liftgate:      model.ClosureStatusClosed,
-			TirePressures: model.TirePressures{UpdatedAt: now},
-		}
-
-		if err := store.SaveState(ctx, state); err != nil {
-			t.Fatalf("SaveState failed: %v", err)
-		}
-	}
+	saveTestStates(t, store, ctx, now, 10, time.Hour, func(i int) float64 { return float64(50 + i) })
 
 	// Get states between hours 3 and 7
 	start := now.Add(3 * time.Hour)

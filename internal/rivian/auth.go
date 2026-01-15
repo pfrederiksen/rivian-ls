@@ -7,6 +7,7 @@ import (
 )
 
 const (
+	//nolint:gosec // G101: False positive - this is a GraphQL mutation string, not a hardcoded credential
 	createCSRFTokenMutation = `
 		mutation CreateCSRFToken {
 			createCsrfToken {
@@ -44,6 +45,7 @@ const (
 		}
 	`
 
+	//nolint:gosec // G101: False positive - this is a GraphQL mutation string, not a hardcoded credential
 	refreshTokenMutation = `
 		mutation RefreshAccessToken($refreshToken: String!) {
 			refreshAccessToken(refreshToken: $refreshToken) {

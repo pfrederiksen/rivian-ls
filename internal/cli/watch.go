@@ -146,40 +146,7 @@ func (c *WatchCommand) runWebSocket(ctx context.Context, formatter Formatter) er
 			}
 
 			// Convert WebSocket update to partial state update
-			// Extract fields from the update payload
-			updates := make(map[string]interface{})
-
-			if data, ok := update["data"].(map[string]interface{}); ok {
-				if vState, ok := data["vehicleState"].(map[string]interface{}); ok {
-					// Extract timestamped values
-					if batteryLevel, ok := vState["batteryLevel"].(map[string]interface{}); ok {
-						if val, ok := batteryLevel["value"].(float64); ok {
-							updates["batteryLevel"] = val
-						}
-					}
-					if rangeEstimate, ok := vState["rangeEstimate"].(map[string]interface{}); ok {
-						if val, ok := rangeEstimate["value"].(float64); ok {
-							updates["rangeEstimate"] = val
-						}
-					}
-					if chargeState, ok := vState["chargeState"].(map[string]interface{}); ok {
-						if val, ok := chargeState["value"].(string); ok {
-							updates["chargeState"] = val
-						}
-					}
-					if isLocked, ok := vState["isLocked"].(map[string]interface{}); ok {
-						if val, ok := isLocked["value"].(bool); ok {
-							updates["isLocked"] = val
-						}
-					}
-					if cabinTemp, ok := vState["cabinTemp"].(map[string]interface{}); ok {
-						if val, ok := cabinTemp["value"].(float64); ok {
-							updates["cabinTemp"] = val
-						}
-					}
-				}
-			}
-
+			updates := extractVehicleStateUpdates(update)
 			if len(updates) == 0 {
 				continue
 			}
@@ -202,6 +169,57 @@ func (c *WatchCommand) runWebSocket(ctx context.Context, formatter Formatter) er
 					_, _ = fmt.Fprintf(os.Stderr, "Warning: Failed to save state: %v\n", err)
 				}
 			}
+		}
+	}
+}
+
+// extractVehicleStateUpdates parses WebSocket update payload into field updates
+func extractVehicleStateUpdates(update map[string]interface{}) map[string]interface{} {
+	updates := make(map[string]interface{})
+
+	data, ok := update["data"].(map[string]interface{})
+	if !ok {
+		return updates
+	}
+
+	vState, ok := data["vehicleState"].(map[string]interface{})
+	if !ok {
+		return updates
+	}
+
+	// Extract timestamped values using helper
+	extractTimestampedFloat(vState, "batteryLevel", "batteryLevel", updates)
+	extractTimestampedFloat(vState, "rangeEstimate", "rangeEstimate", updates)
+	extractTimestampedString(vState, "chargeState", "chargeState", updates)
+	extractTimestampedBool(vState, "isLocked", "isLocked", updates)
+	extractTimestampedFloat(vState, "cabinTemp", "cabinTemp", updates)
+
+	return updates
+}
+
+// extractTimestampedFloat extracts a float value from a timestamped field
+func extractTimestampedFloat(vState map[string]interface{}, field, key string, updates map[string]interface{}) {
+	if fieldData, ok := vState[field].(map[string]interface{}); ok {
+		if val, ok := fieldData["value"].(float64); ok {
+			updates[key] = val
+		}
+	}
+}
+
+// extractTimestampedString extracts a string value from a timestamped field
+func extractTimestampedString(vState map[string]interface{}, field, key string, updates map[string]interface{}) {
+	if fieldData, ok := vState[field].(map[string]interface{}); ok {
+		if val, ok := fieldData["value"].(string); ok {
+			updates[key] = val
+		}
+	}
+}
+
+// extractTimestampedBool extracts a bool value from a timestamped field
+func extractTimestampedBool(vState map[string]interface{}, field, key string, updates map[string]interface{}) {
+	if fieldData, ok := vState[field].(map[string]interface{}); ok {
+		if val, ok := fieldData["value"].(bool); ok {
+			updates[key] = val
 		}
 	}
 }

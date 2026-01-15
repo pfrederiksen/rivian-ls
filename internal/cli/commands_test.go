@@ -15,6 +15,42 @@ import (
 	"github.com/pfrederiksen/rivian-ls/internal/store"
 )
 
+// saveTestStates is a helper to reduce duplicate test state creation
+func saveTestStates(t *testing.T, testStore *store.Store, ctx context.Context, now time.Time, count int, batteryFunc func(int) float64) {
+	for i := 0; i < count; i++ {
+		state := &model.VehicleState{
+			VehicleID:     "vehicle-123",
+			VIN:           "VIN123",
+			Name:          "Test Vehicle",
+			Model:         "R1T",
+			UpdatedAt:     now.Add(time.Duration(i) * time.Hour),
+			BatteryLevel:  batteryFunc(i),
+			RangeEstimate: 200.0,
+			ChargeState:   model.ChargeStateNotCharging,
+			RangeStatus:   model.RangeStatusNormal,
+			IsOnline:      true,
+			Doors: model.Closures{
+				FrontLeft:  model.ClosureStatusClosed,
+				FrontRight: model.ClosureStatusClosed,
+				RearLeft:   model.ClosureStatusClosed,
+				RearRight:  model.ClosureStatusClosed,
+			},
+			Windows: model.Closures{
+				FrontLeft:  model.ClosureStatusClosed,
+				FrontRight: model.ClosureStatusClosed,
+				RearLeft:   model.ClosureStatusClosed,
+				RearRight:  model.ClosureStatusClosed,
+			},
+			Frunk:         model.ClosureStatusClosed,
+			Liftgate:      model.ClosureStatusClosed,
+			TirePressures: model.TirePressures{UpdatedAt: now},
+		}
+		if err := testStore.SaveState(ctx, state); err != nil {
+			t.Fatalf("SaveState failed: %v", err)
+		}
+	}
+}
+
 // mockClient implements rivian.Client for testing
 type mockClient struct {
 	state *rivian.VehicleState
@@ -206,39 +242,7 @@ func TestExportCommand_Run(t *testing.T) {
 	// Save some states
 	ctx := context.Background()
 	now := time.Now()
-
-	for i := 0; i < 5; i++ {
-		state := &model.VehicleState{
-			VehicleID:     "vehicle-123",
-			VIN:           "VIN123",
-			Name:          "Test Vehicle",
-			Model:         "R1T",
-			UpdatedAt:     now.Add(time.Duration(i) * time.Hour),
-			BatteryLevel:  float64(80 - i),
-			RangeEstimate: 200.0,
-			ChargeState:   model.ChargeStateNotCharging,
-			RangeStatus:   model.RangeStatusNormal,
-			IsOnline:      true,
-			Doors: model.Closures{
-				FrontLeft:  model.ClosureStatusClosed,
-				FrontRight: model.ClosureStatusClosed,
-				RearLeft:   model.ClosureStatusClosed,
-				RearRight:  model.ClosureStatusClosed,
-			},
-			Windows: model.Closures{
-				FrontLeft:  model.ClosureStatusClosed,
-				FrontRight: model.ClosureStatusClosed,
-				RearLeft:   model.ClosureStatusClosed,
-				RearRight:  model.ClosureStatusClosed,
-			},
-			Frunk:         model.ClosureStatusClosed,
-			Liftgate:      model.ClosureStatusClosed,
-			TirePressures: model.TirePressures{UpdatedAt: now},
-		}
-		if err := testStore.SaveState(ctx, state); err != nil {
-			t.Fatalf("SaveState failed: %v", err)
-		}
-	}
+	saveTestStates(t, testStore, ctx, now, 5, func(i int) float64 { return float64(80 - i) })
 
 	var buf bytes.Buffer
 	cmd := NewExportCommand(testStore, "vehicle-123", &buf)
@@ -307,39 +311,7 @@ func TestExportCommand_Run_RangeQuery(t *testing.T) {
 	// Save states spanning a time range
 	ctx := context.Background()
 	now := time.Now()
-
-	for i := 0; i < 10; i++ {
-		state := &model.VehicleState{
-			VehicleID:     "vehicle-123",
-			VIN:           "VIN123",
-			Name:          "Test Vehicle",
-			Model:         "R1T",
-			UpdatedAt:     now.Add(time.Duration(i) * time.Hour),
-			BatteryLevel:  float64(50 + i),
-			RangeEstimate: 200.0,
-			ChargeState:   model.ChargeStateNotCharging,
-			RangeStatus:   model.RangeStatusNormal,
-			IsOnline:      true,
-			Doors: model.Closures{
-				FrontLeft:  model.ClosureStatusClosed,
-				FrontRight: model.ClosureStatusClosed,
-				RearLeft:   model.ClosureStatusClosed,
-				RearRight:  model.ClosureStatusClosed,
-			},
-			Windows: model.Closures{
-				FrontLeft:  model.ClosureStatusClosed,
-				FrontRight: model.ClosureStatusClosed,
-				RearLeft:   model.ClosureStatusClosed,
-				RearRight:  model.ClosureStatusClosed,
-			},
-			Frunk:         model.ClosureStatusClosed,
-			Liftgate:      model.ClosureStatusClosed,
-			TirePressures: model.TirePressures{UpdatedAt: now},
-		}
-		if err := testStore.SaveState(ctx, state); err != nil {
-			t.Fatalf("SaveState failed: %v", err)
-		}
-	}
+	saveTestStates(t, testStore, ctx, now, 10, func(i int) float64 { return float64(50 + i) })
 
 	var buf bytes.Buffer
 	cmd := NewExportCommand(testStore, "vehicle-123", &buf)

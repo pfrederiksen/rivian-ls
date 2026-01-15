@@ -319,13 +319,16 @@ func (v *DashboardView) renderStatsSection(state *model.VehicleState, sectionSty
 func (v *DashboardView) renderTirePressures(state *model.VehicleState, sectionStyle, labelStyle, valueStyle lipgloss.Style) string {
 	// Helper to render tire status with color
 	renderTireStatus := func(label string, status model.TirePressureStatus) string {
-		statusColor := lipgloss.Color("#00ff00") // Green for OK
-		if status == model.TirePressureStatusLow {
+		var statusColor lipgloss.Color
+		switch status {
+		case model.TirePressureStatusLow:
 			statusColor = lipgloss.Color("#ffff00") // Yellow for low
-		} else if status == model.TirePressureStatusHigh {
+		case model.TirePressureStatusHigh:
 			statusColor = lipgloss.Color("#ff8800") // Orange for high
-		} else if status == model.TirePressureStatusUnknown || status == "" {
+		case model.TirePressureStatusUnknown, "":
 			statusColor = lipgloss.Color("#888888") // Gray for unknown
+		default:
+			statusColor = lipgloss.Color("#00ff00") // Green for OK
 		}
 		statusStyle := valueStyle.Foreground(statusColor)
 
@@ -431,13 +434,13 @@ func (v *DashboardView) renderIssues(state *model.VehicleState, sectionStyle lip
 
 	var content strings.Builder
 	for _, issue := range issues {
-		// Use critical style for critical issues
-		if strings.Contains(strings.ToLower(issue), "critical") {
+		switch {
+		case strings.Contains(strings.ToLower(issue), "critical"):
 			content.WriteString(criticalStyle.Render("⚠ " + issue))
-		} else if strings.HasPrefix(issue, "Info:") {
+		case strings.HasPrefix(issue, "Info:"):
 			// Info items in gray
 			content.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("#888888")).Render("ℹ " + strings.TrimPrefix(issue, "Info: ")))
-		} else {
+		default:
 			content.WriteString(issueStyle.Render("• " + issue))
 		}
 		content.WriteString("\n")
