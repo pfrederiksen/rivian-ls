@@ -382,6 +382,79 @@ Based on real-world testing, these are the most common issues:
 
 **Fix**: Store the email from the initial `Authenticate()` call and pass it to `SubmitOTP()`.
 
+### WebSocket Subscriptions
+
+**IMPLEMENTED** in `internal/rivian/websocket.go` for real-time vehicle state updates.
+
+#### Connection Details
+
+- **Endpoint**: `wss://rivian.com/api/gql/gateway/graphql`
+- **Protocol**: GraphQL WebSocket (`graphql-ws`)
+- **Required headers**: Same as HTTPS (`apollographql-client-name`, `a-sess`, `csrf-token`, `u-sess`)
+- **Subprotocol**: `Sec-WebSocket-Protocol: graphql-ws`
+
+#### Message Flow
+
+1. **Client → Server**: `connection_init` with apollo client name
+2. **Server → Client**: `connection_ack` when ready
+3. **Client → Server**: `start` with subscription query (ID, query, variables)
+4. **Server → Client**: `data` messages with subscription updates (same ID)
+5. **Server → Client**: `ka` (keep-alive) messages every ~30 seconds
+6. **Client → Server**: `stop` to end subscription (with ID)
+7. **Client → Server**: `connection_terminate` to close connection
+
+#### Subscription Query Example
+
+```graphql
+subscription VehicleStateUpdates($vehicleId: String!) {
+  vehicleState(id: $vehicleId) {
+    __typename
+    batteryLevel { value timeStamp }
+    chargeState { value timeStamp }
+    rangeEstimate { value timeStamp }
+    isLocked { value timeStamp }
+    cabinTemp { value timeStamp }
+  }
+}
+```
+
+**Note**: Subscriptions use the same timestamped value pattern as queries.
+
+#### Implementation Details
+
+- **Auto-reconnect**: Up to 10 retries with 5-second delay
+- **Ping/pong**: Client sends pings every 30 seconds to keep connection alive
+- **Error handling**: Subscription errors are delivered via `error` messages (with subscription ID)
+- **Completion**: Server sends `complete` when subscription ends
+
+#### Usage Example
+
+```go
+// Create WebSocket client
+wsClient := rivian.NewWebSocketClient(credentials, csrfToken, appSessionID)
+
+// Connect
+if err := wsClient.Connect(ctx); err != nil {
+    return err
+}
+defer wsClient.Close()
+
+// Subscribe to vehicle state updates
+subscription, err := rivian.SubscribeToVehicleState(ctx, wsClient, vehicleID)
+if err != nil {
+    return err
+}
+defer subscription.Close()
+
+// Receive updates
+for update := range subscription.Updates() {
+    // Process update (convert to PartialStateUpdate event)
+    fmt.Printf("Battery: %v\n", update["data"]["vehicleState"]["batteryLevel"]["value"])
+}
+```
+
+See `internal/rivian/websocket_test.go` for comprehensive examples.
+
 ### Debugging Tools
 
 Two test binaries are available in `cmd/test-api/`:
@@ -398,21 +471,6 @@ Full integration test that runs:
 go build -o test-api ./cmd/test-api/main.go
 ./test-api -email your@email.com -password yourpassword
 ```
-
-#### `debug-auth`
-
-Minimal authentication test with full request/response logging:
-
-```bash
-go build -o debug-auth ./cmd/test-api/debug-auth.go
-./debug-auth -email your@email.com -password yourpassword
-```
-
-Shows:
-- Exact GraphQL mutations being sent
-- All HTTP headers
-- Full JSON responses (pretty-printed)
-- Step-by-step authentication flow
 
 ### Known Caveats
 
