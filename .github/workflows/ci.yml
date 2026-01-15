@@ -91,5 +91,5 @@ jobs:
 
       - name: Test binary
         run: |
-          ./rivian-ls
           ./rivian-ls version
+          ./rivian-ls --help
