@@ -14,7 +14,8 @@ linters:
     - unconvert
     - dupl
     - gosec
-    - exportloopref
+  disable:
+    - exportloopref  # Deprecated since Go1.22
 
 linters-settings:
   gocyclo:

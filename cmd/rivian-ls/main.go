@@ -33,9 +33,7 @@ func printVersion(w io.Writer) error {
 func run(args []string, w io.Writer) int {
 	if len(args) > 1 && args[1] == "version" {
 		if err := printVersion(w); err != nil {
-			// Best-effort error logging to stderr; if stderr also fails, there's no other output channel available
-			//nolint:errcheck // Cannot handle error from stderr - nowhere else to report
-			fmt.Fprintf(os.Stderr, "Error printing version: %v\n", err)
+			// Error already occurred, just return exit code
 			return 1
 		}
 		return 0
