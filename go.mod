@@ -1,3 +1,3 @@
 module github.com/pfrederiksen/rivian-ls
 
-go 1.25.5
+go 1.21

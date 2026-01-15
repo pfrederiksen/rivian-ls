@@ -1,0 +1,157 @@
+# GoReleaser configuration for rivian-ls
+# Documentation: https://goreleaser.com
+
+version: 2
+
+before:
+  hooks:
+    # Run tests before building
+    - go test ./...
+    - go mod tidy
+
+builds:
+  - id: rivian-ls
+    main: ./cmd/rivian-ls
+    binary: rivian-ls
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    # Exclude combinations that don't make sense
+    ignore:
+      - goos: windows
+        goarch: arm64
+    ldflags:
+      - -s -w
+      - -X main.version={{.Version}}
+      - -X main.commit={{.Commit}}
+      - -X main.date={{.Date}}
+
+archives:
+  - id: rivian-ls-archive
+    format: tar.gz
+    name_template: >-
+      {{ .ProjectName }}_
+      {{- .Version }}_
+      {{- title .Os }}_
+      {{- if eq .Arch "amd64" }}x86_64
+      {{- else if eq .Arch "386" }}i386
+      {{- else }}{{ .Arch }}{{ end }}
+    format_overrides:
+      - goos: windows
+        format: zip
+    files:
+      - README.md
+      - LICENSE
+      - CLAUDE.md
+
+checksum:
+  name_template: 'checksums.txt'
+  algorithm: sha256
+
+snapshot:
+  name_template: "{{ incpatch .Version }}-next"
+
+changelog:
+  sort: asc
+  use: github
+  filters:
+    exclude:
+      - '^docs:'
+      - '^test:'
+      - '^chore:'
+      - Merge pull request
+      - Merge branch
+  groups:
+    - title: Features
+      regexp: '^.*?feat(\([[:word:]]+\))??!?:.+$'
+      order: 0
+    - title: Bug Fixes
+      regexp: '^.*?fix(\([[:word:]]+\))??!?:.+$'
+      order: 1
+    - title: Others
+      order: 999
+
+# Homebrew tap configuration
+brews:
+  - name: rivian-ls
+    # Repository for your Homebrew tap
+    # Format: owner/repo (e.g., pfrederiksen/homebrew-tap)
+    repository:
+      owner: pfrederiksen
+      name: homebrew-tap
+      branch: main
+      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
+
+    # Git author used to commit to the tap
+    commit_author:
+      name: goreleaserbot
+      email: bot@goreleaser.com
+
+    # Folder inside the repository to put the formula
+    folder: Formula
+
+    # Template for the formula
+    homepage: "https://github.com/pfrederiksen/rivian-ls"
+    description: "Production-quality TUI + headless CLI for monitoring Rivian vehicle telemetry"
+    license: "MIT"
+
+    # Custom install script
+    install: |
+      bin.install "rivian-ls"
+
+    # Tests to verify the installation
+    test: |
+      system "#{bin}/rivian-ls", "version"
+
+    # Dependencies (if any are needed at runtime)
+    # dependencies:
+    #   - name: some-dependency
+
+# Release configuration
+release:
+  github:
+    owner: pfrederiksen
+    name: rivian-ls
+
+  # If you want to replace an existing release
+  replace_existing_draft: true
+
+  # If you want to publish the release as a draft
+  draft: false
+
+  # If you want to mark the release as prerelease
+  prerelease: auto
+
+  # Release name template
+  name_template: "{{.ProjectName}} v{{.Version}}"
+
+  # Header and footer for the release notes
+  header: |
+    ## Installation
+
+    ### Homebrew
+    ```bash
+    brew install pfrederiksen/tap/rivian-ls
+    ```
+
+    ### Manual Download
+    Download the appropriate binary for your platform below.
+
+  footer: |
+    **Full Changelog**: https://github.com/pfrederiksen/rivian-ls/compare/{{ .PreviousTag }}...{{ .Tag }}
+
+    ---
+
+    ⚠️ **WARNING**: This tool uses an unofficial Rivian API. Use at your own risk.
+
+# Announce releases (optional - can add later)
+# announce:
+#   twitter:
+#     enabled: true
+#     message_template: 'rivian-ls {{ .Tag }} is out! Check it out at {{ .ReleaseURL }}'

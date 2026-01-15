@@ -2,18 +2,51 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"os"
 )
 
-const version = "0.1.0"
+// Version information - set by GoReleaser via ldflags
+var (
+	version = "dev"
+	commit  = "none"
+	date    = "unknown"
+)
 
-func main() {
-	if len(os.Args) > 1 && os.Args[1] == "version" {
-		fmt.Printf("rivian-ls version %s\n", version)
-		return
+func printVersion(w io.Writer) error {
+	if _, err := fmt.Fprintf(w, "rivian-ls version %s\n", version); err != nil {
+		return err
+	}
+	if commit != "none" {
+		if _, err := fmt.Fprintf(w, "  commit: %s\n", commit); err != nil {
+			return err
+		}
+	}
+	if date != "unknown" {
+		if _, err := fmt.Fprintf(w, "  built:  %s\n", date); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func run(args []string, w io.Writer) int {
+	if len(args) > 1 && args[1] == "version" {
+		if err := printVersion(w); err != nil {
+			// Error already occurred, just return exit code
+			return 1
+		}
+		return 0
 	}
 
 	// Minimal initial implementation - just prints "ok"
-	fmt.Println("ok")
-	os.Exit(0)
+	if _, err := fmt.Fprintln(w, "ok"); err != nil {
+		return 1
+	}
+	return 0
+}
+
+func main() {
+	exitCode := run(os.Args, os.Stdout)
+	os.Exit(exitCode)
 }
