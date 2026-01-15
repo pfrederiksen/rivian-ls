@@ -297,8 +297,27 @@ func runWatchCommand(ctx context.Context, client rivian.Client, db *store.Store,
 		return 1
 	}
 
-	// WebSocket mode - the watch command will handle CSRF/session token retrieval
-	cmd := cli.NewWatchCommand(client, db, vehicleID, "", "", os.Stdout)
+	// Get CSRF token and app session ID for WebSocket mode
+	var csrfToken, appSessionID string
+	if *interval == 0 {
+		// WebSocket mode requires fresh session tokens
+		httpClient, ok := client.(*rivian.HTTPClient)
+		if !ok {
+			_, _ = fmt.Fprintf(os.Stderr, "WebSocket mode requires HTTPClient\n")
+			return 1
+		}
+
+		// Create fresh session for WebSocket
+		if err := httpClient.CreateSession(ctx); err != nil {
+			_, _ = fmt.Fprintf(os.Stderr, "Failed to create session: %v\n", err)
+			return 1
+		}
+
+		csrfToken = httpClient.GetCSRFToken()
+		appSessionID = httpClient.GetAppSessionID()
+	}
+
+	cmd := cli.NewWatchCommand(client, db, vehicleID, csrfToken, appSessionID, os.Stdout)
 	opts := cli.WatchOptions{
 		Format:   cli.OutputFormat(*format),
 		Pretty:   *pretty,
