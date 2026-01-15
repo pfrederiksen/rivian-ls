@@ -36,7 +36,7 @@ func main() {
 			fmt.Printf("   ⚠️  OTP required (session: %s)\n", otpErr.SessionID)
 			fmt.Print("   Enter OTP code: ")
 			var otp string
-			fmt.Scanln(&otp)
+			_, _ = fmt.Scanln(&otp)
 
 			err = client.SubmitOTP(context.Background(), otp)
 			if err != nil {

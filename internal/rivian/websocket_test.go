@@ -49,7 +49,7 @@ func newMockWebSocketServer() *mockWebSocketServer {
 }
 
 func (m *mockWebSocketServer) handleConnection(conn *websocket.Conn) {
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	for {
 		var msg WebSocketMessage
@@ -87,7 +87,7 @@ func (m *mockWebSocketServer) handleConnection(conn *websocket.Conn) {
 						},
 					},
 				}
-				m.writeJSON(conn, data)
+				_ = m.writeJSON(conn, data)
 			}()
 
 		case "stop":
@@ -119,7 +119,7 @@ func (m *mockWebSocketServer) close() {
 	m.mu.Unlock()
 
 	for _, conn := range clients {
-		conn.Close()
+		_ = conn.Close()
 	}
 	m.server.Close()
 }
@@ -210,7 +210,7 @@ func TestWebSocketClient_Connect(t *testing.T) {
 	}
 
 	// Clean up
-	client.Close()
+	_ = client.Close()
 }
 
 func TestWebSocketClient_Subscribe(t *testing.T) {
@@ -290,7 +290,7 @@ func TestWebSocketClient_Subscribe(t *testing.T) {
 	}
 
 	// Clean up
-	client.Close()
+	_ = client.Close()
 }
 
 func TestWebSocketClient_Unsubscribe(t *testing.T) {
@@ -347,7 +347,7 @@ func TestWebSocketClient_Unsubscribe(t *testing.T) {
 done:
 
 	// Clean up
-	client.Close()
+	_ = client.Close()
 }
 
 func TestWebSocketClient_Close(t *testing.T) {
@@ -549,5 +549,5 @@ func TestVehicleStateSubscription(t *testing.T) {
 	}
 
 	// Clean up
-	wsClient.Close()
+	_ = wsClient.Close()
 }

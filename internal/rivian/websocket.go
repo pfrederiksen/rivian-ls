@@ -269,7 +269,7 @@ func (c *WebSocketClient) handleDisconnect() {
 	}
 
 	if c.conn != nil {
-		c.conn.Close()
+		_ = c.conn.Close()
 		c.conn = nil
 	}
 
@@ -336,7 +336,7 @@ func (c *WebSocketClient) writeMessage(msg WebSocketMessage) error {
 		return fmt.Errorf("not connected")
 	}
 
-	c.conn.SetWriteDeadline(time.Now().Add(WriteTimeout))
+	_ = c.conn.SetWriteDeadline(time.Now().Add(WriteTimeout))
 	return c.conn.WriteJSON(msg)
 }
 

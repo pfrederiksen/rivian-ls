@@ -52,7 +52,7 @@ func run(args []string) int {
 	versionFlag := fs.Bool("version", false, "Print version and exit")
 
 	if err := fs.Parse(args[1:]); err != nil {
-		fmt.Fprintf(os.Stderr, "Error parsing flags: %v\n", err)
+		_, _ = fmt.Fprintf(os.Stderr, "Error parsing flags: %v\n", err)
 		return 1
 	}
 
@@ -68,7 +68,7 @@ func run(args []string) int {
 	if *dbPath == "" {
 		home, err := os.UserHomeDir()
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error getting home directory: %v\n", err)
+			_, _ = fmt.Fprintf(os.Stderr, "Error getting home directory: %v\n", err)
 			return 1
 		}
 		*dbPath = home + "/.local/share/rivian-ls/state.db"
@@ -76,7 +76,7 @@ func run(args []string) int {
 		// Ensure directory exists
 		dbDir := home + "/.local/share/rivian-ls"
 		if err := os.MkdirAll(dbDir, 0755); err != nil {
-			fmt.Fprintf(os.Stderr, "Error creating database directory: %v\n", err)
+			_, _ = fmt.Fprintf(os.Stderr, "Error creating database directory: %v\n", err)
 			return 1
 		}
 	}
@@ -89,30 +89,30 @@ func run(args []string) int {
 	// Create credentials cache
 	credCache, err := auth.NewCredentialsCache()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Warning: Could not create credentials cache: %v\n", err)
+		_, _ = fmt.Fprintf(os.Stderr, "Warning: Could not create credentials cache: %v\n", err)
 		credCache = nil
 	}
 
 	// Try to authenticate
 	if err := authenticate(ctx, client, credCache, email, password); err != nil {
-		fmt.Fprintf(os.Stderr, "Authentication failed: %v\n", err)
+		_, _ = fmt.Fprintf(os.Stderr, "Authentication failed: %v\n", err)
 		return 1
 	}
 
 	// Get vehicles
 	vehicles, err := client.GetVehicles(ctx)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to get vehicles: %v\n", err)
+		_, _ = fmt.Fprintf(os.Stderr, "Failed to get vehicles: %v\n", err)
 		return 1
 	}
 
 	if len(vehicles) == 0 {
-		fmt.Fprintf(os.Stderr, "No vehicles found\n")
+		_, _ = fmt.Fprintf(os.Stderr, "No vehicles found\n")
 		return 1
 	}
 
 	if *vehicleIndex >= len(vehicles) {
-		fmt.Fprintf(os.Stderr, "Vehicle index %d out of range (have %d vehicles)\n", *vehicleIndex, len(vehicles))
+		_, _ = fmt.Fprintf(os.Stderr, "Vehicle index %d out of range (have %d vehicles)\n", *vehicleIndex, len(vehicles))
 		return 1
 	}
 
@@ -121,17 +121,17 @@ func run(args []string) int {
 	// Open database
 	db, err := store.NewStore(*dbPath)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to open database: %v\n", err)
+		_, _ = fmt.Fprintf(os.Stderr, "Failed to open database: %v\n", err)
 		return 1
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	// Create and run TUI
 	model := tui.NewModel(client, db, vehicle.ID)
 	p := tea.NewProgram(model, tea.WithAltScreen())
 
 	if _, err := p.Run(); err != nil {
-		fmt.Fprintf(os.Stderr, "Error running TUI: %v\n", err)
+		_, _ = fmt.Fprintf(os.Stderr, "Error running TUI: %v\n", err)
 		return 1
 	}
 
@@ -220,7 +220,7 @@ func authenticate(ctx context.Context, client *rivian.HTTPClient, credCache *aut
 		if credCache != nil {
 			if creds := client.GetCredentials(); creds != nil {
 				if err := credCache.Save(*email, creds); err != nil {
-					fmt.Fprintf(os.Stderr, "Warning: Could not save credentials: %v\n", err)
+					_, _ = fmt.Fprintf(os.Stderr, "Warning: Could not save credentials: %v\n", err)
 				}
 			}
 		}

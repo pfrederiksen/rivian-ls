@@ -14,7 +14,7 @@ func TestNewHealthView(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create store: %v", err)
 	}
-	defer tmpStore.Close()
+	defer func() { _ = tmpStore.Close() }()
 
 	view := NewHealthView(tmpStore, "test-vehicle-id")
 	if view == nil {
@@ -33,7 +33,7 @@ func TestHealthViewRender(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create store: %v", err)
 	}
-	defer tmpStore.Close()
+	defer func() { _ = tmpStore.Close() }()
 
 	view := NewHealthView(tmpStore, "test-vehicle-id")
 	state := createTestState()
@@ -60,7 +60,7 @@ func TestHealthViewOnlineStatus(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create store: %v", err)
 	}
-	defer tmpStore.Close()
+	defer func() { _ = tmpStore.Close() }()
 
 	view := NewHealthView(tmpStore, "test-vehicle-id")
 
@@ -100,7 +100,7 @@ func TestHealthViewWithIssues(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create store: %v", err)
 	}
-	defer tmpStore.Close()
+	defer func() { _ = tmpStore.Close() }()
 
 	view := NewHealthView(tmpStore, "test-vehicle-id")
 
