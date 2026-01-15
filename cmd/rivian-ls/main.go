@@ -43,6 +43,14 @@ func printVersion(w io.Writer) error {
 }
 
 func run(args []string) int {
+	// Handle version subcommand first (before flag parsing)
+	if len(args) > 1 && args[1] == "version" {
+		if err := printVersion(os.Stdout); err != nil {
+			return 1
+		}
+		return 0
+	}
+
 	// Parse command line flags
 	fs := flag.NewFlagSet("rivian-ls", flag.ExitOnError)
 	email := fs.String("email", "", "Email address for authentication")

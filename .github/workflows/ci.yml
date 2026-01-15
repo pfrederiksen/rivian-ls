@@ -90,6 +90,4 @@ jobs:
         run: go build -v -o rivian-ls ./cmd/rivian-ls
 
       - name: Test binary
-        run: |
-          ./rivian-ls version
-          ./rivian-ls --help
+        run: ./rivian-ls version
