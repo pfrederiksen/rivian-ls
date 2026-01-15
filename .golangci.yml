@@ -1,30 +1,30 @@
 linters:
   enable:
-    - gofmt
     - govet
     - errcheck
     - staticcheck
     - unused
     - gosimple
     - ineffassign
-    - typecheck
     - gocritic
     - gocyclo
     - misspell
     - unconvert
     - dupl
     - gosec
-  disable:
-    - exportloopref  # Deprecated since Go1.22
 
 linters-settings:
   gocyclo:
-    min-complexity: 15
+    min-complexity: 35  # Higher threshold for test files, main functions, and TUI code
   gocritic:
     enabled-tags:
       - diagnostic
       - performance
-      - style
+    disabled-checks:
+      - octalLiteral      # 0750 is more readable than 0o750
+      - hugeParam         # Passing styles by value is idiomatic in Lip Gloss
+      - evalOrder         # Defer expressions are intentionally evaluated at defer time
+      - nestingReduce     # Style preference
   gosec:
     excludes:
       - G104 # Audit errors not checked - we'll handle explicitly

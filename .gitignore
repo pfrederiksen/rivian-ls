@@ -1,5 +1,12 @@
 # Binaries (only in root, not cmd/rivian-ls directory)
 /rivian-ls
+/test-api
+/debug-auth
+/debug-state
+/test-cli
+/test-cli-debug
+/main
+/bin/
 *.exe
 *.exe~
 *.dll
