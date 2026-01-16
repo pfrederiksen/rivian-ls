@@ -531,11 +531,12 @@ func (v *ChartsView) renderStats(state *model.VehicleState) string {
 
 	// Format change with sign
 	changeStr := fmt.Sprintf("%+.1f%s", change, unit)
-	if change > 0 {
+	switch {
+	case change > 0:
 		changeStr = valueStyle.Foreground(lipgloss.Color("#00ff00")).Render(changeStr)
-	} else if change < 0 {
+	case change < 0:
 		changeStr = valueStyle.Foreground(lipgloss.Color("#ff0000")).Render(changeStr)
-	} else {
+	default:
 		changeStr = valueStyle.Render(changeStr)
 	}
 
