@@ -8,12 +8,27 @@ A production-quality terminal UI (TUI) and headless CLI tool for monitoring Rivi
 
 - 🚗 **Real-time vehicle monitoring** via GraphQL + WebSocket subscriptions
 - 📊 **Interactive TUI** powered by Bubble Tea with multiple views
+- 🚙 **Multi-vehicle support** with interactive selection menu
+- 📈 **Historical charts** with ASCII sparklines for all metrics
 - 🤖 **Headless CLI mode** for scripting and automation
 - 💾 **Local persistence** for historical data and analysis
 - 🔐 **Secure credential storage** with OS keychain integration
-- 📈 **Derived insights**: charging narratives, readiness score, tire drift tracking
+- 📉 **Derived insights**: charging narratives, readiness score, efficiency tracking
 - ⚙️ **Flexible configuration** via config file, environment variables, or CLI flags
 - 🔄 **Auto-fallback** from WebSocket to HTTP polling when needed
+
+### What's New in v0.3.0
+
+- **Multi-Vehicle Support**: Interactive vehicle selection menu (`v` key)
+  - Switch between vehicles at runtime without restarting
+  - Shows battery %, online status, and vehicle details
+  - Keyboard navigation with arrows or number keys
+- **Historical Charts**: New 4th view with ASCII sparklines
+  - Battery Level, Range, Charging Rate, Temperature, Efficiency
+  - Configurable time ranges (24h, 7d, 30d)
+  - Statistics display (current, min, max, change)
+  - Left/Right arrows to switch metrics, `t` to cycle time ranges
+- **Bug Fix**: Honors `--vehicle` flag for initial vehicle selection
 
 ### What's New in v0.2.0
 
@@ -79,7 +94,8 @@ rivian-ls
 You'll be prompted for your email and password on first run. If MFA/OTP is enabled, you'll be asked for the code. Credentials are cached securely for future runs.
 
 **Navigation:**
-- Press `1`, `2`, or `3` (or `d`, `c`, `h`) to switch between views
+- Press `1`, `2`, `3`, or `4` (or `d`, `c`, `h`) to switch between views
+- Press `v` to open vehicle selection menu (multi-vehicle accounts)
 - Press `r` to manually refresh data
 - Press `q` or `Ctrl+C` to quit
 
@@ -87,6 +103,14 @@ You'll be prompted for your email and password on first run. If MFA/OTP is enabl
 1. **Dashboard** (`1` or `d`): Battery, range, charging status, locks, closures, cabin temp, tire pressures, ready score
 2. **Charge** (`2` or `c`): Detailed charging session info and history
 3. **Health** (`3` or `h`): Tire pressure trends and vehicle timeline
+4. **Charts** (`4`): Historical trends with ASCII sparklines
+   - Battery Level (%)
+   - Range Estimate (mi)
+   - Charging Rate (kW)
+   - Cabin Temperature (°F)
+   - Energy Efficiency (mi/kWh)
+   - Press `←`/`→` to switch metrics
+   - Press `t` to cycle time ranges (24h → 7d → 30d)
 
 ### CLI Mode (Headless/Scripting)
 
@@ -219,7 +243,14 @@ On subsequent runs, the tool will automatically use cached credentials. If token
 
 ### Multi-Vehicle Support
 
-If you have multiple vehicles, use `--vehicle <index>` to select which one:
+**TUI Mode (Interactive):**
+- Press `v` to open the vehicle selection menu
+- Navigate with arrow keys or numbers (1-9)
+- Press Enter to confirm selection, Esc to cancel
+- Switch vehicles at runtime without restarting
+
+**CLI Mode (Headless):**
+Use `--vehicle <index>` to select which vehicle on startup:
 
 ```bash
 # Use first vehicle (default)

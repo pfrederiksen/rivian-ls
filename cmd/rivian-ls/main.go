@@ -182,7 +182,7 @@ func run(args []string) int {
 		return runExportCommand(ctx, db, vehicle.ID, subcommandArgs)
 	case "":
 		// No subcommand - launch TUI
-		model := tui.NewModel(client, db, vehicle.ID)
+		model := tui.NewModel(client, db, vehicles, *vehicleIndex)
 		p := tea.NewProgram(model, tea.WithAltScreen())
 
 		if _, err := p.Run(); err != nil {

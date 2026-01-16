@@ -114,10 +114,12 @@ internal/
 │   ├── watch.go         # Real-time streaming command
 │   └── export.go        # Historical data export command
 └── tui/         # Bubble Tea TUI (Coverage: TBD)
-    ├── model.go         # Bubble Tea model (Elm architecture)
+    ├── model.go         # Bubble Tea model (Elm architecture, multi-vehicle)
     ├── dashboard.go     # Dashboard view (battery, charging, security, tires, stats)
     ├── charge.go        # Detailed charging view
-    └── health.go        # Health/history view with timeline
+    ├── health.go        # Health/history view with timeline
+    ├── charts.go        # Charts view (ASCII sparklines for 5 metrics)
+    └── vehicle_menu.go  # Vehicle selection overlay menu
 ```
 
 ### Key Architectural Decisions
@@ -431,8 +433,10 @@ The TUI is built using [Bubble Tea](https://github.com/charmbracelet/bubbletea) 
 
 **Key features**:
 - Real-time updates via WebSocket (with graceful degradation to manual refresh)
-- Three main views: Dashboard, Charge, Health
-- Keyboard navigation ([1]/[2]/[3] for views, [r] for refresh, [q] to quit)
+- Multi-vehicle support with interactive selection menu
+- Four main views: Dashboard, Charge, Health, Charts
+- Keyboard navigation ([1]/[2]/[3]/[4] for views, [v] for vehicle menu, [r] for refresh, [q] to quit)
+- Charts view with configurable metrics and time ranges
 - Alt-screen mode (preserves terminal on exit)
 
 ### Dashboard View
@@ -450,6 +454,49 @@ Displays vehicle overview in three-column layout:
 **Right Column**:
 - Climate & Travel section (temperature, odometer, location)
 - Battery Stats section (calculated capacity, efficiency, mi/kWh, mi/%)
+
+### Charts View
+
+Displays historical trends using ASCII sparklines (powered by [asciigraph](https://github.com/guptarohit/asciigraph)).
+
+**Available Metrics**:
+1. **Battery Level** (%) - Shows battery percentage over time
+2. **Range Estimate** (mi) - Shows remaining range over time
+3. **Charging Rate** (kW) - Shows charging power (0 when not charging)
+4. **Cabin Temperature** (°F) - Shows interior temperature
+5. **Energy Efficiency** (mi/kWh) - Calculated from battery/range deltas
+
+**Time Ranges**:
+- 24 Hours: Last 24 hours with up to 100 data points
+- 7 Days: Last week with up to 200 data points
+- 30 Days: Last month with up to 300 data points
+
+**Navigation**:
+- `←`/`→` keys: Switch between metrics
+- `t` key: Cycle through time ranges (24h → 7d → 30d)
+- Charts automatically refresh when data updates
+
+**Features**:
+- Statistics bar showing current, min, max, and change values
+- Color-coded change indicators (green for increase, red for decrease)
+- Graceful handling of missing data (temperature, charging rate can be null)
+- Edge cases: Shows friendly message for insufficient data
+
+### Multi-Vehicle Support
+
+Users with multiple Rivian vehicles can switch between them without restarting:
+
+**Vehicle Selection Menu**:
+- Press `v` to open the vehicle selection overlay
+- Shows: Vehicle name, model, VIN (last 6 digits), battery %, online status
+- Navigate with arrow keys (`↑`/`↓`) or number keys (1-9)
+- Press Enter to confirm selection, Esc to cancel
+
+**Implementation**:
+- Map-based architecture: Separate state, reducer, and WebSocket client per vehicle
+- Hot-swap subscriptions: Closes old WebSocket and starts new when switching
+- Lazy state loading: Vehicles only fetch data when selected
+- History cache invalidation: Charts reload data after vehicle switch
 
 ### Calculated Metrics
 
