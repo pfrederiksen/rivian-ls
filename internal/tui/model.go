@@ -51,6 +51,10 @@ type Model struct {
 	chargeView    *ChargeView
 	healthView    *HealthView
 
+	// Vehicle menu
+	showVehicleMenu bool
+	vehicleMenu     *VehicleMenu
+
 	// Terminal dimensions
 	width  int
 	height int
@@ -175,20 +179,55 @@ func (m *Model) View() string {
 	// Render footer with keyboard shortcuts
 	footer := m.renderFooter()
 
-	return lipgloss.JoinVertical(
+	// Build base view
+	baseView := lipgloss.JoinVertical(
 		lipgloss.Left,
 		header,
 		content,
 		footer,
 	)
+
+	// If vehicle menu is open, overlay it
+	if m.showVehicleMenu && m.vehicleMenu != nil {
+		// Render menu on top of base view
+		menuOverlay := m.vehicleMenu.Render(m.width, m.height)
+		// Layer menu over base - this creates the overlay effect
+		return menuOverlay
+	}
+
+	return baseView
 }
 
 // handleKeyPress processes keyboard input
 func (m *Model) handleKeyPress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	// If vehicle menu is open, route keys to it
+	if m.showVehicleMenu {
+		selectedIndex, done := m.vehicleMenu.HandleKey(msg.String())
+		if done {
+			if selectedIndex >= 0 && selectedIndex != m.activeVehicle {
+				// User confirmed a different vehicle
+				m.showVehicleMenu = false
+				return m, m.switchVehicle(selectedIndex)
+			}
+			// User canceled or selected same vehicle
+			m.showVehicleMenu = false
+		}
+		return m, nil
+	}
+
+	// Normal key handling when menu is closed
 	switch msg.String() {
 	case "ctrl+c", "q":
 		m.cancel()
 		return m, tea.Quit
+
+	case "v":
+		// Toggle vehicle menu
+		if len(m.vehicles) > 0 {
+			m.vehicleMenu = NewVehicleMenu(m.vehicles, m.activeVehicle, m.vehicleStates)
+			m.showVehicleMenu = true
+		}
+		return m, nil
 
 	case "1", "d":
 		m.currentView = ViewDashboard
@@ -531,7 +570,14 @@ func (m *Model) renderFooter() string {
 	helpStyle := lipgloss.NewStyle().
 		Foreground(lipgloss.Color("#666666"))
 
-	help := helpStyle.Render("[r] refresh | [q] quit")
+	// Build help text with vehicle selector if multiple vehicles
+	var helpText string
+	if len(m.vehicles) > 1 {
+		helpText = "[v] vehicles | [r] refresh | [q] quit"
+	} else {
+		helpText = "[r] refresh | [q] quit"
+	}
+	help := helpStyle.Render(helpText)
 
 	// Calculate spacing between tabs and help
 	// Account for padding that will be added by the style (1 char on each side)
