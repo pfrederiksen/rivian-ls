@@ -254,6 +254,27 @@ func (m *Model) handleKeyPress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		// Refresh data
 		return m, m.fetchInitialState()
 
+	case "left":
+		// Switch to previous metric in charts view
+		if m.currentView == ViewCharts {
+			m.chartsView.PrevMetric()
+		}
+		return m, nil
+
+	case "right":
+		// Switch to next metric in charts view
+		if m.currentView == ViewCharts {
+			m.chartsView.NextMetric()
+		}
+		return m, nil
+
+	case "t":
+		// Cycle time range in charts view
+		if m.currentView == ViewCharts {
+			m.chartsView.NextTimeRange()
+		}
+		return m, nil
+
 	default:
 		return m, nil
 	}
@@ -583,10 +604,19 @@ func (m *Model) renderFooter() string {
 
 	// Build help text with vehicle selector if multiple vehicles
 	var helpText string
-	if len(m.vehicles) > 1 {
-		helpText = "[v] vehicles | [r] refresh | [q] quit"
+	if m.currentView == ViewCharts {
+		// Charts view has special keyboard shortcuts
+		if len(m.vehicles) > 1 {
+			helpText = "[←/→] metric | [t] time | [v] vehicles | [r] refresh | [q] quit"
+		} else {
+			helpText = "[←/→] metric | [t] time | [r] refresh | [q] quit"
+		}
 	} else {
-		helpText = "[r] refresh | [q] quit"
+		if len(m.vehicles) > 1 {
+			helpText = "[v] vehicles | [r] refresh | [q] quit"
+		} else {
+			helpText = "[r] refresh | [q] quit"
+		}
 	}
 	help := helpStyle.Render(helpText)
 
