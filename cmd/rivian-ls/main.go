@@ -70,6 +70,14 @@ func run(args []string) int {
 		return ExitInvalidArgs
 	}
 
+	// Check for subcommands (status, watch, export)
+	var subcommand string
+	var subcommandArgs []string
+	if len(args) > 1 && !strings.HasPrefix(args[1], "-") {
+		subcommand = args[1]
+		subcommandArgs = args[2:]
+	}
+
 	// Parse command line flags (using config values as defaults)
 	fs := flag.NewFlagSet("rivian-ls", flag.ExitOnError)
 	email := fs.String("email", cfg.Email, "Email address for authentication")
@@ -84,15 +92,6 @@ func run(args []string) int {
 	if err := fs.Parse(args[1:]); err != nil {
 		_, _ = fmt.Fprintf(os.Stderr, "Error parsing flags: %v\n", err)
 		return ExitInvalidArgs
-	}
-
-	// Check for subcommands in remaining args after flag parsing
-	var subcommand string
-	var subcommandArgs []string
-	remainingArgs := fs.Args()
-	if len(remainingArgs) > 0 {
-		subcommand = remainingArgs[0]
-		subcommandArgs = remainingArgs[1:]
 	}
 
 	// Handle version flag
