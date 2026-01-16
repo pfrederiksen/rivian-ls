@@ -127,68 +127,22 @@ rivian-ls export --since 24h --format yaml > last-24h.yaml
 #### Exit Codes
 
 - `0`: Success
-- `1`: Authentication failure (invalid credentials, OTP failed)
-- `2`: Vehicle not found (no vehicles registered, invalid vehicle index)
-- `3`: API error (network failure, Rivian API unavailable)
-- `4`: Invalid arguments (bad flags, conflicting options, config errors)
+- `1`: Error (authentication, API, or other failure)
 
 ## Configuration
 
-Configuration can be provided via multiple sources. Priority order (highest to lowest):
-1. Command-line flags
-2. Environment variables
-3. Config file (`~/.config/rivian-ls/config.yaml`)
-4. Defaults
-
-### Config File
-
-Create `~/.config/rivian-ls/config.yaml`:
-
-```yaml
-# Authentication (optional - will prompt if not provided)
-email: your.email@example.com
-# password: leave empty - prompting is more secure
-
-# Storage
-db_path: ~/.local/share/rivian-ls/state.db
-disable_store: false  # Set to true to prevent saving state history
-
-# Vehicle selection
-vehicle: 0  # 0-based index if you have multiple vehicles
-
-# Polling interval for watch mode
-poll_interval: 30s
-
-# Output verbosity
-quiet: false    # Suppress informational messages
-verbose: false  # Enable debug logging
-```
-
-See [`config.yaml.example`](config.yaml.example) for a complete example.
-
-### Environment Variables
-
-All config file options can be set via environment variables:
-
-```bash
-export RIVIAN_EMAIL="your.email@example.com"
-export RIVIAN_PASSWORD="your-password"  # Not recommended - use prompt instead
-export RIVIAN_DB_PATH="/custom/path/to/state.db"
-export RIVIAN_TOKEN_CACHE="/custom/path/to/credentials.json"
-export RIVIAN_DISABLE_STORE="true"
-export RIVIAN_POLL_INTERVAL="30s"
-export RIVIAN_QUIET="true"
-export RIVIAN_VERBOSE="true"
-```
-
 ### Credential Storage
 
-Credentials are cached in `~/.local/share/rivian-ls/credentials.json`. The cache includes:
+Credentials are cached in `~/.local/share/rivian-ls/credentials.json` (encrypted). The cache includes:
 - Email address
 - Access token and refresh token
 - Token expiration times
 
-On subsequent runs, the tool will automatically use cached credentials. If tokens are expired, they'll be refreshed automatically. If refresh fails, you'll be prompted to log in again.
+On subsequent runs, the tool will automatically use cached credentials. If tokens are expired, they'll be refreshed automatically using the refresh token. If refresh fails, you'll be prompted to log in again.
+
+### Database Location
+
+Vehicle state history is stored in SQLite at `~/.local/share/rivian-ls/state.db` by default. You can specify a custom location with `--db /path/to/database.db`.
 
 ### Multi-Vehicle Support
 

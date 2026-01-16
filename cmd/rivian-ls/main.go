@@ -7,14 +7,12 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/pfrederiksen/rivian-ls/internal/auth"
 	"github.com/pfrederiksen/rivian-ls/internal/cli"
-	"github.com/pfrederiksen/rivian-ls/internal/config"
 	"github.com/pfrederiksen/rivian-ls/internal/rivian"
 	"github.com/pfrederiksen/rivian-ls/internal/store"
 	"github.com/pfrederiksen/rivian-ls/internal/tui"
@@ -26,15 +24,6 @@ var (
 	version = "dev"
 	commit  = "none"
 	date    = "unknown"
-)
-
-// Exit codes
-const (
-	ExitSuccess       = 0
-	ExitAuthFailure   = 1
-	ExitVehicleNotFound = 2
-	ExitAPIError      = 3
-	ExitInvalidArgs   = 4
 )
 
 func printVersion(w io.Writer) error {
@@ -58,16 +47,9 @@ func run(args []string) int {
 	// Handle version subcommand first (before flag parsing)
 	if len(args) > 1 && args[1] == "version" {
 		if err := printVersion(os.Stdout); err != nil {
-			return ExitInvalidArgs
+			return 1
 		}
-		return ExitSuccess
-	}
-
-	// Load configuration from file and environment variables
-	cfg, err := config.Load()
-	if err != nil {
-		_, _ = fmt.Fprintf(os.Stderr, "Error loading configuration: %v\n", err)
-		return ExitInvalidArgs
+		return 0
 	}
 
 	// Check for subcommands (status, watch, export)
@@ -78,47 +60,41 @@ func run(args []string) int {
 		subcommandArgs = args[2:]
 	}
 
-	// Parse command line flags (using config values as defaults)
+	// Parse command line flags
 	fs := flag.NewFlagSet("rivian-ls", flag.ExitOnError)
-	email := fs.String("email", cfg.Email, "Email address for authentication")
-	password := fs.String("password", cfg.Password, "Password (will prompt if not provided)")
-	vehicleIndex := fs.Int("vehicle", cfg.Vehicle, "Vehicle index (0-based)")
-	dbPath := fs.String("db", cfg.DBPath, "Database path (default: ~/.local/share/rivian-ls/state.db)")
+	email := fs.String("email", "", "Email address for authentication")
+	password := fs.String("password", "", "Password (will prompt if not provided)")
+	vehicleIndex := fs.Int("vehicle", 0, "Vehicle index (0-based)")
+	dbPath := fs.String("db", "", "Database path (default: ~/.local/share/rivian-ls/state.db)")
 	versionFlag := fs.Bool("version", false, "Print version and exit")
-	quiet := fs.Bool("quiet", cfg.Quiet, "Suppress informational output")
-	verbose := fs.Bool("verbose", cfg.Verbose, "Enable verbose logging")
-	noStore := fs.Bool("no-store", cfg.DisableStore, "Don't persist snapshots locally")
 
 	if err := fs.Parse(args[1:]); err != nil {
 		_, _ = fmt.Fprintf(os.Stderr, "Error parsing flags: %v\n", err)
-		return ExitInvalidArgs
+		return 1
 	}
 
 	// Handle version flag
 	if *versionFlag {
 		if err := printVersion(os.Stdout); err != nil {
-			return ExitInvalidArgs
+			return 1
 		}
-		return ExitSuccess
+		return 0
 	}
 
-	// Set verbosity based on flags
-	if *quiet && *verbose {
-		_, _ = fmt.Fprintf(os.Stderr, "Error: --quiet and --verbose cannot be used together\n")
-		return ExitInvalidArgs
-	}
+	// Determine database path
+	if *dbPath == "" {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			_, _ = fmt.Fprintf(os.Stderr, "Error getting home directory: %v\n", err)
+			return 1
+		}
+		*dbPath = home + "/.local/share/rivian-ls/state.db"
 
-	// Apply verbosity settings to logger (we'll add proper logging later)
-	// For now, just store the flags
-	_ = quiet
-	_ = verbose
-
-	// Ensure database directory exists (unless --no-store is set)
-	if !*noStore {
-		dbDir := filepath.Dir(*dbPath)
+		// Ensure directory exists
+		dbDir := home + "/.local/share/rivian-ls"
 		if err := os.MkdirAll(dbDir, 0750); err != nil {
 			_, _ = fmt.Fprintf(os.Stderr, "Error creating database directory: %v\n", err)
-			return ExitInvalidArgs
+			return 1
 		}
 	}
 
@@ -137,39 +113,35 @@ func run(args []string) int {
 	// Try to authenticate
 	if err := authenticate(ctx, client, credCache, email, password); err != nil {
 		_, _ = fmt.Fprintf(os.Stderr, "Authentication failed: %v\n", err)
-		return ExitAuthFailure
+		return 1
 	}
 
 	// Get vehicles
 	vehicles, err := client.GetVehicles(ctx)
 	if err != nil {
 		_, _ = fmt.Fprintf(os.Stderr, "Failed to get vehicles: %v\n", err)
-		return ExitAPIError
+		return 1
 	}
 
 	if len(vehicles) == 0 {
 		_, _ = fmt.Fprintf(os.Stderr, "No vehicles found\n")
-		return ExitVehicleNotFound
+		return 1
 	}
 
 	if *vehicleIndex >= len(vehicles) {
 		_, _ = fmt.Fprintf(os.Stderr, "Vehicle index %d out of range (have %d vehicles)\n", *vehicleIndex, len(vehicles))
-		return ExitVehicleNotFound
+		return 1
 	}
 
 	vehicle := vehicles[*vehicleIndex]
 
-	// Open database (unless --no-store is set)
-	var db *store.Store
-	if !*noStore {
-		var err error
-		db, err = store.NewStore(*dbPath)
-		if err != nil {
-			_, _ = fmt.Fprintf(os.Stderr, "Failed to open database: %v\n", err)
-			return ExitInvalidArgs
-		}
-		defer func() { _ = db.Close() }()
+	// Open database
+	db, err := store.NewStore(*dbPath)
+	if err != nil {
+		_, _ = fmt.Fprintf(os.Stderr, "Failed to open database: %v\n", err)
+		return 1
 	}
+	defer func() { _ = db.Close() }()
 
 	// Route to subcommand or launch TUI
 	switch subcommand {
@@ -186,13 +158,13 @@ func run(args []string) int {
 
 		if _, err := p.Run(); err != nil {
 			_, _ = fmt.Fprintf(os.Stderr, "Error running TUI: %v\n", err)
-			return ExitAPIError
+			return 1
 		}
-		return ExitSuccess
+		return 0
 	default:
 		_, _ = fmt.Fprintf(os.Stderr, "Unknown command: %s\n", subcommand)
 		_, _ = fmt.Fprintf(os.Stderr, "Available commands: status, watch, export\n")
-		return ExitInvalidArgs
+		return 1
 	}
 }
 
@@ -295,7 +267,7 @@ func runStatusCommand(ctx context.Context, client rivian.Client, db *store.Store
 
 	if err := fs.Parse(args); err != nil {
 		_, _ = fmt.Fprintf(os.Stderr, "Error parsing status flags: %v\n", err)
-		return ExitInvalidArgs
+		return 1
 	}
 
 	cmd := cli.NewStatusCommand(client, db, vehicleID, os.Stdout)
@@ -307,10 +279,10 @@ func runStatusCommand(ctx context.Context, client rivian.Client, db *store.Store
 
 	if err := cmd.Run(ctx, opts); err != nil {
 		_, _ = fmt.Fprintf(os.Stderr, "Status command failed: %v\n", err)
-		return ExitAPIError
+		return 1
 	}
 
-	return ExitSuccess
+	return 0
 }
 
 func runWatchCommand(ctx context.Context, client rivian.Client, db *store.Store, vehicleID string, args []string) int {
@@ -321,7 +293,7 @@ func runWatchCommand(ctx context.Context, client rivian.Client, db *store.Store,
 
 	if err := fs.Parse(args); err != nil {
 		_, _ = fmt.Fprintf(os.Stderr, "Error parsing watch flags: %v\n", err)
-		return ExitInvalidArgs
+		return 1
 	}
 
 	// Get CSRF token and app session ID for WebSocket mode
@@ -331,13 +303,13 @@ func runWatchCommand(ctx context.Context, client rivian.Client, db *store.Store,
 		httpClient, ok := client.(*rivian.HTTPClient)
 		if !ok {
 			_, _ = fmt.Fprintf(os.Stderr, "WebSocket mode requires HTTPClient\n")
-			return ExitInvalidArgs
+			return 1
 		}
 
 		// Create fresh session for WebSocket
 		if err := httpClient.CreateSession(ctx); err != nil {
 			_, _ = fmt.Fprintf(os.Stderr, "Failed to create session: %v\n", err)
-			return ExitAPIError
+			return 1
 		}
 
 		csrfToken = httpClient.GetCSRFToken()
@@ -353,10 +325,10 @@ func runWatchCommand(ctx context.Context, client rivian.Client, db *store.Store,
 
 	if err := cmd.Run(ctx, opts); err != nil {
 		_, _ = fmt.Fprintf(os.Stderr, "Watch command failed: %v\n", err)
-		return ExitAPIError
+		return 1
 	}
 
-	return ExitSuccess
+	return 0
 }
 
 func runExportCommand(ctx context.Context, db *store.Store, vehicleID string, args []string) int {
@@ -369,7 +341,7 @@ func runExportCommand(ctx context.Context, db *store.Store, vehicleID string, ar
 
 	if err := fs.Parse(args); err != nil {
 		_, _ = fmt.Fprintf(os.Stderr, "Error parsing export flags: %v\n", err)
-		return ExitInvalidArgs
+		return 1
 	}
 
 	// Parse time arguments
@@ -383,7 +355,7 @@ func runExportCommand(ctx context.Context, db *store.Store, vehicleID string, ar
 			t, err := time.Parse(time.RFC3339, *since)
 			if err != nil {
 				_, _ = fmt.Fprintf(os.Stderr, "Invalid since time: %v\n", err)
-				return ExitInvalidArgs
+				return 1
 			}
 			sinceTime = t
 		}
@@ -393,7 +365,7 @@ func runExportCommand(ctx context.Context, db *store.Store, vehicleID string, ar
 		t, err := time.Parse(time.RFC3339, *until)
 		if err != nil {
 			_, _ = fmt.Fprintf(os.Stderr, "Invalid until time: %v\n", err)
-			return ExitInvalidArgs
+			return 1
 		}
 		untilTime = t
 	}
@@ -409,10 +381,10 @@ func runExportCommand(ctx context.Context, db *store.Store, vehicleID string, ar
 
 	if err := cmd.Run(ctx, opts); err != nil {
 		_, _ = fmt.Fprintf(os.Stderr, "Export command failed: %v\n", err)
-		return ExitAPIError
+		return 1
 	}
 
-	return ExitSuccess
+	return 0
 }
 
 func main() {
