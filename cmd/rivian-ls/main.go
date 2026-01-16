@@ -153,7 +153,7 @@ func run(args []string) int {
 		return ExitVehicleNotFound
 	}
 
-	if *vehicleIndex >= len(vehicles) {
+	if *vehicleIndex < 0 || *vehicleIndex >= len(vehicles) {
 		_, _ = fmt.Fprintf(os.Stderr, "Vehicle index %d out of range (have %d vehicles)\n", *vehicleIndex, len(vehicles))
 		return ExitVehicleNotFound
 	}
