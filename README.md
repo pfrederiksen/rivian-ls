@@ -23,6 +23,23 @@ A production-quality terminal UI (TUI) and headless CLI tool for monitoring Rivi
 - **Standardized Exit Codes**: Proper exit codes (0-4) for shell scripting
 - **Configuration Layering**: CLI flags > env vars > config file > defaults
 
+## Screenshots
+
+### Dashboard View
+Real-time overview of battery, charging, security, tire status, and calculated metrics.
+
+![Dashboard View](docs/screenshots/dashboard.png)
+
+### Charge View
+Detailed charging information with battery details and intelligent recommendations.
+
+![Charge View](docs/screenshots/charge.png)
+
+### Health View
+Vehicle diagnostics, trends over time, and closure status monitoring.
+
+![Health View](docs/screenshots/health.png)
+
 ## Installation
 
 ### Homebrew (Recommended)
