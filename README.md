@@ -41,119 +41,115 @@ The binary will be built as `./rivian-ls`.
 
 ## Quick Start
 
-### TUI Mode (Interactive Dashboard)
+### Authentication
+
+First, authenticate with your Rivian account:
+
+```bash
+rivian-ls auth
+```
+
+You'll be prompted for your email and password. If MFA/OTP is enabled, you'll be prompted for the code. Credentials are stored securely in your OS keychain.
+
+### TUI Mode
 
 Launch the interactive terminal UI:
 
 ```bash
-rivian-ls
+rivian-ls run
 ```
 
-You'll be prompted for your email and password on first run. If MFA/OTP is enabled, you'll be asked for the code. Credentials are cached securely for future runs.
-
 **Navigation:**
-- Press `1`, `2`, or `3` (or `d`, `c`, `h`) to switch between views
-- Press `r` to manually refresh data
-- Press `q` or `Ctrl+C` to quit
+- Use `Tab` or number keys to switch between views
+- Press `q` to quit
+- Press `?` for help
 
 **Views:**
-1. **Dashboard** (`1` or `d`): Battery, range, charging status, locks, closures, cabin temp, tire pressures, ready score
-2. **Charge** (`2` or `c`): Detailed charging session info and history
-3. **Health** (`3` or `h`): Tire pressure trends and vehicle timeline
+1. **Dashboard**: Battery, range, charging status, locks, closures, cabin temp, tire pressures, ready score
+2. **Charge**: Detailed charging session info and history
+3. **Health/History**: Tire pressure trends and vehicle timeline
 
-### CLI Mode (Headless/Scripting)
+### Headless CLI Mode
 
-The CLI mode is designed for scripting, automation, and piping data to other tools.
+The headless mode is designed for scripting, automation, and piping data to other tools.
 
 #### Get a snapshot
 
 ```bash
-# Human-readable text output (default)
+# Human-readable output (default)
 rivian-ls status
 
 # JSON output for scripting
-rivian-ls status --format json --pretty
+rivian-ls status --format json
 
 # YAML output
-rivian-ls status --format yaml --pretty
-
-# CSV output
-rivian-ls status --format csv
-
-# Table output
-rivian-ls status --format table
+rivian-ls status --format yaml
 ```
 
 #### Stream live updates
 
 ```bash
-# Stream updates continuously (WebSocket with auto-fallback to polling)
+# Stream updates continuously (like `tail -f`)
 rivian-ls watch
 
-# JSON output
-rivian-ls watch --format json --pretty
+# JSON Lines output (one JSON object per line)
+rivian-ls watch --format jsonlines
 
-# Force polling mode with 30-second interval
+# Auto-exit after 5 minutes
+rivian-ls watch --duration 5m
+
+# Polling fallback with custom interval
 rivian-ls watch --interval 30s
-
-# Note: WebSocket may fail due to Rivian API limitations - the tool automatically
-# falls back to HTTP polling mode (30s interval) when this happens
 ```
 
 #### Export historical data
 
 ```bash
-# Export all cached history as JSON
-rivian-ls export --format json --pretty > vehicle-history.json
+# Export last 24 hours as JSON
+rivian-ls export --format json > vehicle-history.json
 
 # Export last 100 records as CSV
 rivian-ls export --limit 100 --format csv > history.csv
-
-# Export data from the last 24 hours
-rivian-ls export --since 24h --format yaml > last-24h.yaml
 ```
 
 #### Common Options
 
-- `--email <email>`: Specify email (prompts if not provided)
-- `--password <password>`: Specify password (prompts securely if not provided)
-- `--vehicle <index>`: Select vehicle by index (0-based, default: 0)
-- `--db <path>`: Custom database path (default: `~/.local/share/rivian-ls/state.db`)
-- `--format <format>`: Output format for CLI commands (`text`, `json`, `yaml`, `csv`, `table`)
-- `--pretty`: Pretty-print JSON/YAML output
-- `--interval <duration>`: Polling interval for watch mode (e.g., `30s`, `1m`)
-- `--offline`: Use cached data only (for `status` command)
+- `--vehicle <name|VIN|id>`: Select specific vehicle
+- `--format <human|json|jsonlines|csv>`: Output format
+- `--no-store`: Don't persist snapshots locally
+- `--quiet`: Suppress logs
+- `--verbose`: Enable debug logging
 
 #### Exit Codes
 
 - `0`: Success
-- `1`: Error (authentication, API, or other failure)
+- `1`: Authentication failure
+- `2`: Vehicle not found
+- `3`: API unreachable or error
+- `4`: Invalid arguments
 
 ## Configuration
 
-### Credential Storage
+Configuration can be provided via environment variables or a config file.
 
-Credentials are cached in `~/.local/share/rivian-ls/credentials.json` (encrypted). The cache includes:
-- Email address
-- Access token and refresh token
-- Token expiration times
-
-On subsequent runs, the tool will automatically use cached credentials. If tokens are expired, they'll be refreshed automatically using the refresh token. If refresh fails, you'll be prompted to log in again.
-
-### Database Location
-
-Vehicle state history is stored in SQLite at `~/.local/share/rivian-ls/state.db` by default. You can specify a custom location with `--db /path/to/database.db`.
-
-### Multi-Vehicle Support
-
-If you have multiple vehicles, use `--vehicle <index>` to select which one:
+### Environment Variables
 
 ```bash
-# Use first vehicle (default)
-rivian-ls status --vehicle 0
+export RIVIAN_EMAIL="your.email@example.com"
+export RIVIAN_PASSWORD="your-password"
+export RIVIAN_TOKEN_STORAGE="/custom/path/to/tokens"
+export RIVIAN_POLL_INTERVAL="30s"
+```
 
-# Use second vehicle
-rivian-ls status --vehicle 1
+### Config File
+
+Create `~/.config/rivian-ls/config.yaml`:
+
+```yaml
+email: your.email@example.com
+# password: leave empty to be prompted interactively (recommended)
+token_storage: /custom/path/to/tokens
+poll_interval: 30s
 ```
 
 ## Development
