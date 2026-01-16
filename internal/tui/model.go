@@ -20,6 +20,7 @@ const (
 	ViewDashboard ViewType = iota
 	ViewCharge
 	ViewHealth
+	ViewCharts
 )
 
 // Model is the main Bubble Tea model for the TUI
@@ -50,6 +51,7 @@ type Model struct {
 	dashboardView *DashboardView
 	chargeView    *ChargeView
 	healthView    *HealthView
+	chartsView    *ChartsView
 
 	// Vehicle menu
 	showVehicleMenu bool
@@ -94,6 +96,7 @@ func NewModel(client rivian.Client, store *store.Store, vehicles []rivian.Vehicl
 		dashboardView: NewDashboardView(),
 		chargeView:    NewChargeView(),
 		healthView:    NewHealthView(store, vehicleID),
+		chartsView:    NewChartsView(store, vehicleID),
 	}
 }
 
@@ -174,6 +177,8 @@ func (m *Model) View() string {
 		content = m.chargeView.Render(m.state, m.width, m.height-lipgloss.Height(header)-3)
 	case ViewHealth:
 		content = m.healthView.Render(m.state, m.width, m.height-lipgloss.Height(header)-3)
+	case ViewCharts:
+		content = m.chartsView.Render(m.state, m.width, m.height-lipgloss.Height(header)-3)
 	}
 
 	// Render footer with keyboard shortcuts
@@ -239,6 +244,10 @@ func (m *Model) handleKeyPress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 	case "3", "h":
 		m.currentView = ViewHealth
+		return m, nil
+
+	case "4":
+		m.currentView = ViewCharts
 		return m, nil
 
 	case "r":
@@ -482,8 +491,9 @@ func (m *Model) switchVehicle(newIndex int) tea.Cmd {
 	m.activeVehicle = newIndex
 	newVehicleID := m.vehicles[m.activeVehicle].ID
 
-	// Update health view with new vehicle ID
+	// Update views with new vehicle ID
 	m.healthView = NewHealthView(m.store, newVehicleID)
+	m.chartsView = NewChartsView(m.store, newVehicleID)
 
 	// Return commands to fetch state and subscribe
 	return tea.Batch(
@@ -547,6 +557,7 @@ func (m *Model) renderFooter() string {
 		"[1] Dashboard",
 		"[2] Charge",
 		"[3] Health",
+		"[4] Charts",
 	}
 
 	activeTabStyle := lipgloss.NewStyle().
