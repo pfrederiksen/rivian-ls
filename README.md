@@ -12,16 +12,6 @@ A production-quality terminal UI (TUI) and headless CLI tool for monitoring Rivi
 - 💾 **Local persistence** for historical data and analysis
 - 🔐 **Secure credential storage** with OS keychain integration
 - 📈 **Derived insights**: charging narratives, readiness score, tire drift tracking
-- ⚙️ **Flexible configuration** via config file, environment variables, or CLI flags
-- 🔄 **Auto-fallback** from WebSocket to HTTP polling when needed
-
-### What's New in v0.2.0
-
-- **Config File Support**: Create `~/.config/rivian-ls/config.yaml` to set defaults
-- **Environment Variables**: Configure via `RIVIAN_EMAIL`, `RIVIAN_VERBOSE`, etc.
-- **New Flags**: `--quiet`, `--verbose`, `--no-store` for better control
-- **Standardized Exit Codes**: Proper exit codes (0-4) for shell scripting
-- **Configuration Layering**: CLI flags > env vars > config file > defaults
 
 ## Installation
 

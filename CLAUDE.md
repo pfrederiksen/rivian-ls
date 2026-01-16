@@ -63,26 +63,12 @@ make build
 # Or use Make directly
 make run
 
-# Run with configuration options
-./rivian-ls --verbose              # TUI with debug logging
-./rivian-ls --no-store             # TUI without saving state
-./rivian-ls status                 # One-time status snapshot
-./rivian-ls status --format json   # JSON output
-./rivian-ls watch                  # Stream real-time updates
-./rivian-ls export --since 24h     # Export last 24h of data
+# Run with verbose logging
+./rivian-ls --verbose
 
-# Use environment variables
-export RIVIAN_EMAIL="your@email.com"
-export RIVIAN_VERBOSE="true"
-./rivian-ls status
-
-# Use config file
-mkdir -p ~/.config/rivian-ls
-cat > ~/.config/rivian-ls/config.yaml <<EOF
-email: your@email.com
-verbose: true
-poll_interval: 30s
-EOF
+# Run specific command
+./rivian-ls auth
+./rivian-ls status --format json
 ./rivian-ls watch
 ```
 
@@ -102,10 +88,6 @@ internal/
 │   ├── vehicle.go       # VehicleState domain model
 │   ├── reducer.go       # Redux-style event reducer
 │   └── insights.go      # Derived metrics (ReadyScore, issues)
-├── auth/        # Credential caching (Coverage: 80%)
-│   └── cache.go         # Secure credential storage with refresh
-├── config/      # Configuration management (Coverage: 100%)
-│   └── config.go        # Multi-source config (file, env, defaults)
 ├── store/       # Local persistence (Coverage: 71.3%)
 │   └── store.go         # SQLite storage with dual column+JSON strategy
 ├── cli/         # Headless CLI (Coverage: 57.9%)
