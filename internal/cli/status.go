@@ -54,6 +54,9 @@ func (c *StatusCommand) Run(ctx context.Context, opts StatusOptions) error {
 
 	if opts.Offline {
 		// Use cached state from store
+		if c.store == nil {
+			return fmt.Errorf("offline mode requires state storage (--no-store conflicts with --offline)")
+		}
 		state, err = c.store.GetLatestState(ctx, c.vehicleID)
 		if err != nil {
 			return fmt.Errorf("get cached state: %w", err)

@@ -219,11 +219,13 @@ func (m *Model) fetchInitialState() tea.Cmd {
 		vehicles, err := m.client.GetVehicles(m.ctx)
 		if err != nil {
 			// Fall back to cached data - get latest state from last 30 days
-			states, err := m.store.GetStateHistory(m.ctx, "", time.Now().Add(-30*24*time.Hour), 1)
-			if err != nil || len(states) == 0 {
-				return initialStateMsg{err: fmt.Errorf("failed to fetch vehicle data: %w", err)}
+			if m.store != nil {
+				states, err := m.store.GetStateHistory(m.ctx, "", time.Now().Add(-30*24*time.Hour), 1)
+				if err == nil && len(states) > 0 {
+					return initialStateMsg{state: states[0]}
+				}
 			}
-			return initialStateMsg{state: states[0]}
+			return initialStateMsg{err: fmt.Errorf("failed to fetch vehicle data: %w", err)}
 		}
 
 		if len(vehicles) == 0 {
@@ -254,7 +256,9 @@ func (m *Model) fetchInitialState() tea.Cmd {
 		finalState := m.reducer.Dispatch(stateEvent)
 
 		// Save to store (silently fail - not critical for TUI operation)
-		_ = m.store.SaveState(m.ctx, domainState)
+		if m.store != nil {
+			_ = m.store.SaveState(m.ctx, domainState)
+		}
 
 		return initialStateMsg{state: finalState}
 	}
@@ -330,7 +334,7 @@ func (m *Model) subscribeToUpdates() tea.Cmd {
 						finalState := m.reducer.Dispatch(event)
 
 						// Save to store (if we have a complete state)
-						if finalState != nil {
+						if finalState != nil && m.store != nil {
 							// Silently fail - not critical
 							_ = m.store.SaveState(m.ctx, finalState)
 

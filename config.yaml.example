@@ -1,0 +1,21 @@
+# Example configuration file for rivian-ls
+# Place this at: ~/.config/rivian-ls/config.yaml
+
+# Authentication (optional - will prompt if not provided)
+email: your.email@example.com
+# password: leave empty - prompting is more secure
+
+# Storage
+db_path: ~/.local/share/rivian-ls/state.db
+token_cache: ~/.local/share/rivian-ls/credentials.json
+disable_store: false  # Set to true to prevent saving state history
+
+# Vehicle selection (0-based index if you have multiple vehicles)
+vehicle: 0
+
+# Polling interval for watch mode fallback
+poll_interval: 30s
+
+# Output verbosity
+quiet: false    # Suppress informational messages
+verbose: false  # Enable debug logging (cannot be used with quiet)

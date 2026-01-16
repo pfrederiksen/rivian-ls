@@ -48,7 +48,7 @@ func (v *HealthView) Render(state *model.VehicleState, width, height int) string
 		Bold(true)
 
 	// Load recent history if not already loaded
-	if v.history == nil {
+	if v.history == nil && v.store != nil {
 		ctx := context.Background()
 		// Get history from last 7 days, limit to 20 states
 		history, err := v.store.GetStateHistory(ctx, v.vehicleID, time.Now().Add(-7*24*time.Hour), 20)
