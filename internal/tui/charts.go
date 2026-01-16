@@ -197,21 +197,15 @@ func (v *ChartsView) loadHistory() {
 	}
 }
 
-// renderBatteryChart renders the battery level chart
-func (v *ChartsView) renderBatteryChart(width, height int) string {
+// renderSimpleChart is a helper to render charts for simple float64 metrics
+func (v *ChartsView) renderSimpleChart(data []float64, metricName, unit string, width, height int) string {
 	if len(v.history) == 0 {
 		return v.renderNoData()
 	}
 
-	// Extract battery data (reverse order - oldest to newest for chart)
-	data := make([]float64, 0, len(v.history))
-	for i := len(v.history) - 1; i >= 0; i-- {
-		data = append(data, v.history[i].BatteryLevel)
-	}
-
 	// Handle single data point
 	if len(data) == 1 {
-		return v.renderSingleDataPoint("Battery Level", data[0], "%")
+		return v.renderSingleDataPoint(metricName, data[0], unit)
 	}
 
 	// Render chart
@@ -232,6 +226,21 @@ func (v *ChartsView) renderBatteryChart(width, height int) string {
 	return graphStyle.Render(graph)
 }
 
+// renderBatteryChart renders the battery level chart
+func (v *ChartsView) renderBatteryChart(width, height int) string {
+	if len(v.history) == 0 {
+		return v.renderNoData()
+	}
+
+	// Extract battery data (reverse order - oldest to newest for chart)
+	data := make([]float64, 0, len(v.history))
+	for i := len(v.history) - 1; i >= 0; i-- {
+		data = append(data, v.history[i].BatteryLevel)
+	}
+
+	return v.renderSimpleChart(data, "Battery Level", "%", width, height)
+}
+
 // renderRangeChart renders the range estimate chart
 func (v *ChartsView) renderRangeChart(width, height int) string {
 	if len(v.history) == 0 {
@@ -244,27 +253,7 @@ func (v *ChartsView) renderRangeChart(width, height int) string {
 		data = append(data, v.history[i].RangeEstimate)
 	}
 
-	// Handle single data point
-	if len(data) == 1 {
-		return v.renderSingleDataPoint("Range Estimate", data[0], "mi")
-	}
-
-	// Render chart
-	graph := asciigraph.Plot(
-		data,
-		asciigraph.Height(height),
-		asciigraph.Width(width),
-		asciigraph.Caption(v.generateTimeLabels()),
-	)
-
-	// Style the graph
-	graphStyle := lipgloss.NewStyle().
-		Border(lipgloss.RoundedBorder()).
-		BorderForeground(lipgloss.Color("#5f5fff")).
-		Padding(1).
-		Width(width + 4) // Account for border and padding
-
-	return graphStyle.Render(graph)
+	return v.renderSimpleChart(data, "Range Estimate", "mi", width, height)
 }
 
 // renderChargingRateChart renders the charging rate chart

@@ -8,6 +8,23 @@ import (
 	"github.com/pfrederiksen/rivian-ls/internal/model"
 )
 
+func TestNewChartsView(t *testing.T) {
+	view := NewChartsView(nil, "test-vehicle-id")
+
+	if view == nil {
+		t.Fatal("NewChartsView() returned nil")
+	}
+	if view.vehicleID != "test-vehicle-id" {
+		t.Errorf("NewChartsView() vehicleID = %q, want %q", view.vehicleID, "test-vehicle-id")
+	}
+	if view.selectedMetric != MetricBattery {
+		t.Errorf("NewChartsView() default metric = %v, want %v", view.selectedMetric, MetricBattery)
+	}
+	if view.timeRange != Range24Hours {
+		t.Errorf("NewChartsView() default timeRange = %v, want %v", view.timeRange, Range24Hours)
+	}
+}
+
 func TestChartsView_NextMetric(t *testing.T) {
 	view := &ChartsView{
 		selectedMetric: MetricBattery,
@@ -369,5 +386,59 @@ func TestChartsView_TimeRangeSwitchingInvalidatesCache(t *testing.T) {
 	view.NextTimeRange()
 	if view.history != nil {
 		t.Error("NextTimeRange() should invalidate history cache")
+	}
+}
+
+func TestChartsView_RenderSimpleChart(t *testing.T) {
+	now := time.Now()
+	view := &ChartsView{
+		history: []*model.VehicleState{
+			{BatteryLevel: 80.0, UpdatedAt: now.Add(-2 * time.Hour)},
+			{BatteryLevel: 75.0, UpdatedAt: now.Add(-1 * time.Hour)},
+			{BatteryLevel: 70.0, UpdatedAt: now},
+		},
+		timeRange: Range24Hours,
+	}
+
+	data := []float64{80.0, 75.0, 70.0}
+	output := view.renderSimpleChart(data, "Test Metric", "units", 80, 20)
+
+	// Should contain chart elements
+	if !strings.Contains(output, "│") && !strings.Contains(output, "┤") {
+		t.Error("renderSimpleChart() should contain chart box drawing characters")
+	}
+}
+
+func TestChartsView_RenderSimpleChart_NoData(t *testing.T) {
+	view := &ChartsView{
+		history: []*model.VehicleState{},
+	}
+
+	data := []float64{}
+	output := view.renderSimpleChart(data, "Test Metric", "units", 80, 20)
+
+	// Should show no data message
+	if !strings.Contains(output, "No historical data") {
+		t.Error("renderSimpleChart() with no data should show no data message")
+	}
+}
+
+func TestChartsView_RenderSimpleChart_SinglePoint(t *testing.T) {
+	now := time.Now()
+	view := &ChartsView{
+		history: []*model.VehicleState{
+			{BatteryLevel: 80.0, UpdatedAt: now},
+		},
+	}
+
+	data := []float64{80.0}
+	output := view.renderSimpleChart(data, "Test Metric", "units", 80, 20)
+
+	// Should show single data point message
+	if !strings.Contains(output, "Need at least 2 data points") {
+		t.Error("renderSimpleChart() with single point should show single data point message")
+	}
+	if !strings.Contains(output, "Test Metric") {
+		t.Error("renderSimpleChart() should include metric name")
 	}
 }

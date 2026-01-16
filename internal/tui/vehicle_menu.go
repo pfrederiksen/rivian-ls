@@ -110,9 +110,9 @@ func (m *VehicleMenu) Render(width, height int) string {
 		line.WriteString(fmt.Sprintf("%d. ", i+1))
 
 		// Vehicle info
-		vehicleInfo := fmt.Sprintf("%s \"%s\"", vehicle.Model, vehicle.Name)
+		vehicleInfo := fmt.Sprintf("%s %q", vehicle.Model, vehicle.Name)
 		if vehicle.Model == "" {
-			vehicleInfo = fmt.Sprintf("\"%s\"", vehicle.Name)
+			vehicleInfo = fmt.Sprintf("%q", vehicle.Name)
 		}
 		if vehicle.Name == "" {
 			vehicleInfo = vehicle.Model
