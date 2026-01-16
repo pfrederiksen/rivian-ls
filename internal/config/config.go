@@ -65,6 +65,7 @@ func Load() (*Config, error) {
 func (c *Config) loadFromFile() error {
 	configPath := getConfigPath()
 
+	// #nosec G304 -- configPath is from XDG_CONFIG_HOME or ~/.config, not user input
 	data, err := os.ReadFile(configPath)
 	if err != nil {
 		if os.IsNotExist(err) {
