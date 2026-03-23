@@ -431,6 +431,14 @@ Based on real-world testing, these are the most common issues:
 
 **Fix**: Store the email from the initial `Authenticate()` call and pass it to `SubmitOTP()`.
 
+#### 5. OTP Session State Lost
+
+**Symptom**: `SubmitOTP` fails with UNAUTHENTICATED even though `Authenticate()` succeeded.
+
+**Root cause**: The `loginWithOTP` mutation requires the same `csrf-token` and `a-sess` headers that were established during `Authenticate()`. If anything clears or overwrites those values between the two calls, the OTP submission fails.
+
+**Fix**: `SubmitOTP()` now validates that `csrfToken` and `appSessionID` are still present before making the API call. If they're missing, it returns a clear error: `"session state lost"`. The test suite verifies that session headers from `Authenticate()` are carried through to the OTP call.
+
 ## TUI (Terminal User Interface)
 
 ### Overview
