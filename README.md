@@ -17,6 +17,18 @@ A production-quality terminal UI (TUI) and headless CLI tool for monitoring Rivi
 - ⚙️ **Flexible configuration** via config file, environment variables, or CLI flags
 - 🔄 **Auto-fallback** from WebSocket to HTTP polling when needed
 
+### What's New in v0.4.0
+
+- **`login` command**: Standalone authentication command for verifying credentials
+  - Works fully non-interactively: `rivian-ls --email x --password y --otp 123456 login`
+  - Validates session end-to-end by querying vehicles after auth
+- **`--otp` flag**: Provide MFA/OTP code via flag for non-interactive/scripted login
+- **Non-TTY support**: Clear error messages when interactive prompts are needed but no terminal is available
+  - Guides users to the correct flag, env var, or config file
+- **Bug fix**: Fixed `UNAUTHENTICATED` error when using cached credentials
+  - Cached auth was missing CSRF token and app session ID required by the API
+  - Now creates a fresh session after restoring credentials from cache
+
 ### What's New in v0.3.0
 
 - **Multi-Vehicle Support**: Interactive vehicle selection menu (`v` key)
@@ -93,6 +105,12 @@ rivian-ls
 
 You'll be prompted for your email and password on first run. If MFA/OTP is enabled, you'll be asked for the code. Credentials are cached securely for future runs.
 
+To authenticate non-interactively (e.g., in scripts or CI):
+
+```bash
+rivian-ls --email user@example.com --password secret --otp 123456 login
+```
+
 **Navigation:**
 - Press `1`, `2`, `3`, or `4` (or `d`, `c`, `h`) to switch between views
 - Press `v` to open vehicle selection menu (multi-vehicle accounts)
@@ -115,6 +133,19 @@ You'll be prompted for your email and password on first run. If MFA/OTP is enabl
 ### CLI Mode (Headless/Scripting)
 
 The CLI mode is designed for scripting, automation, and piping data to other tools.
+
+#### Authenticate
+
+```bash
+# Interactive login (prompts for email, password, OTP)
+rivian-ls login
+
+# Non-interactive login (for scripts/CI)
+rivian-ls --email user@example.com --password secret --otp 123456 login
+
+# Using environment variables
+RIVIAN_EMAIL=user@example.com RIVIAN_PASSWORD=secret rivian-ls login
+```
 
 #### Get a snapshot
 
@@ -166,8 +197,9 @@ rivian-ls export --since 24h --format yaml > last-24h.yaml
 
 #### Common Options
 
-- `--email <email>`: Specify email (prompts if not provided)
-- `--password <password>`: Specify password (prompts securely if not provided)
+- `--email <email>`: Specify email (prompts if not provided, required in non-TTY mode)
+- `--password <password>`: Specify password (prompts securely if not provided, required in non-TTY mode)
+- `--otp <code>`: Specify MFA/OTP code (required in non-TTY mode when MFA is enabled)
 - `--vehicle <index>`: Select vehicle by index (0-based, default: 0)
 - `--db <path>`: Custom database path (default: `~/.local/share/rivian-ls/state.db`)
 - `--format <format>`: Output format for CLI commands (`text`, `json`, `yaml`, `csv`, `table`)
@@ -234,7 +266,7 @@ export RIVIAN_VERBOSE="true"
 
 ### Credential Storage
 
-Credentials are cached in `~/.local/share/rivian-ls/credentials.json`. The cache includes:
+Credentials are cached in `~/.config/rivian-ls/credentials.json`. The cache includes:
 - Email address
 - Access token and refresh token
 - Token expiration times
