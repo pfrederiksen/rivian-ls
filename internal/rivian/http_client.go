@@ -136,6 +136,31 @@ func (c *HTTPClient) GetAppSessionID() string {
 	return c.appSessionID
 }
 
+// SetSessionTokens sets the CSRF token and app session ID directly.
+// Used to restore a persisted OTP session.
+func (c *HTTPClient) SetSessionTokens(csrfToken, appSessionID string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.csrfToken = csrfToken
+	c.appSessionID = appSessionID
+}
+
+// SetOTPState sets the OTP token and email for completing an MFA flow.
+// Used to restore a persisted OTP session.
+func (c *HTTPClient) SetOTPState(otpToken, email string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.otpToken = otpToken
+	c.email = email
+}
+
+// GetOTPToken returns the current OTP token (set during Authenticate when MFA is required).
+func (c *HTTPClient) GetOTPToken() string {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	return c.otpToken
+}
+
 // graphqlRequest represents a GraphQL request.
 type graphqlRequest struct {
 	Query     string                 `json:"query"`

@@ -22,7 +22,9 @@ A production-quality terminal UI (TUI) and headless CLI tool for monitoring Rivi
 - **`login` command**: Standalone authentication command for verifying credentials
   - Works fully non-interactively: `rivian-ls --email x --password y --otp 123456 login`
   - Validates session end-to-end by querying vehicles after auth
-- **`--otp` flag**: Provide MFA/OTP code via flag for non-interactive/scripted login
+- **Two-phase OTP login**: Non-interactive MFA via two separate invocations
+  - Phase 1: `rivian-ls --email x --password y login` triggers SMS, saves session
+  - Phase 2: `rivian-ls login --otp 123456` completes authentication
 - **Non-TTY support**: Clear error messages when interactive prompts are needed but no terminal is available
   - Guides users to the correct flag, env var, or config file
 - **Bug fix**: Fixed `UNAUTHENTICATED` error when using cached credentials
@@ -105,14 +107,14 @@ rivian-ls
 
 You'll be prompted for your email and password on first run. If MFA/OTP is enabled, you'll be asked for the code. Credentials are cached securely for future runs.
 
-To authenticate non-interactively (e.g., in scripts or CI):
+For non-interactive login (e.g., scripts or CI), use the two-phase flow:
 
 ```bash
-# If you already have the OTP code (e.g., retry after SMS was sent)
-rivian-ls --email user@example.com --password secret --otp 123456 login
+# Phase 1: Trigger SMS (saves OTP session to disk)
+rivian-ls --email user@example.com --password secret login
 
-# OTP is read from stdin after SMS is triggered — provide it via pipe
-rivian-ls --email user@example.com --password secret login <<< "123456"
+# Phase 2: Complete with OTP code (after receiving SMS)
+rivian-ls login --otp 123456
 ```
 
 **Navigation:**
@@ -144,13 +146,13 @@ The CLI mode is designed for scripting, automation, and piping data to other too
 # Interactive login (prompts for email, password, OTP)
 rivian-ls login
 
-# Non-interactive with known OTP (e.g., retry after SMS was sent)
-rivian-ls --email user@example.com --password secret --otp 123456 login
+# Non-interactive two-phase login:
+# Phase 1 — trigger SMS (saves OTP session to ~/.config/rivian-ls/pending_otp.json)
+rivian-ls --email user@example.com --password secret login
+# Phase 2 — complete with OTP code after receiving SMS
+rivian-ls login --otp 123456
 
-# Non-interactive — OTP read from stdin after SMS is triggered
-rivian-ls --email user@example.com --password secret login <<< "123456"
-
-# Using environment variables (OTP still read from stdin if needed)
+# Using environment variables
 RIVIAN_EMAIL=user@example.com RIVIAN_PASSWORD=secret rivian-ls login
 ```
 
@@ -206,7 +208,7 @@ rivian-ls export --since 24h --format yaml > last-24h.yaml
 
 - `--email <email>`: Specify email (prompts if not provided, required in non-TTY mode)
 - `--password <password>`: Specify password (prompts securely if not provided, required in non-TTY mode)
-- `--otp <code>`: Specify MFA/OTP code upfront (if not provided, OTP is read from stdin after SMS is triggered)
+- `--otp <code>`: Provide MFA/OTP code to complete a two-phase login
 - `--vehicle <index>`: Select vehicle by index (0-based, default: 0)
 - `--db <path>`: Custom database path (default: `~/.local/share/rivian-ls/state.db`)
 - `--format <format>`: Output format for CLI commands (`text`, `json`, `yaml`, `csv`, `table`)

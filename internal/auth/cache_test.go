@@ -254,3 +254,82 @@ func TestCredentialsCache_Path(t *testing.T) {
 		t.Errorf("Expected path %s, got %s", testPath, cache.Path())
 	}
 }
+
+func TestPendingOTP_SaveLoadDelete(t *testing.T) {
+	tmpDir := t.TempDir()
+	cache := &CredentialsCache{path: filepath.Join(tmpDir, "credentials.json")}
+
+	// Save pending OTP
+	pending := &PendingOTP{
+		Email:        "test@example.com",
+		OTPToken:     "otp-token-123",
+		CSRFToken:    "csrf-token-456",
+		AppSessionID: "app-session-789",
+	}
+	if err := cache.SavePendingOTP(pending); err != nil {
+		t.Fatalf("SavePendingOTP failed: %v", err)
+	}
+
+	// Load it back
+	loaded, err := cache.LoadPendingOTP()
+	if err != nil {
+		t.Fatalf("LoadPendingOTP failed: %v", err)
+	}
+	if loaded == nil {
+		t.Fatal("Expected pending OTP, got nil")
+	}
+	if loaded.Email != "test@example.com" {
+		t.Errorf("Email = %q, want %q", loaded.Email, "test@example.com")
+	}
+	if loaded.OTPToken != "otp-token-123" {
+		t.Errorf("OTPToken = %q, want %q", loaded.OTPToken, "otp-token-123")
+	}
+	if loaded.CSRFToken != "csrf-token-456" {
+		t.Errorf("CSRFToken = %q, want %q", loaded.CSRFToken, "csrf-token-456")
+	}
+	if loaded.AppSessionID != "app-session-789" {
+		t.Errorf("AppSessionID = %q, want %q", loaded.AppSessionID, "app-session-789")
+	}
+	if !loaded.IsValid() {
+		t.Error("Freshly saved pending OTP should be valid")
+	}
+
+	// Delete it
+	if err := cache.DeletePendingOTP(); err != nil {
+		t.Fatalf("DeletePendingOTP failed: %v", err)
+	}
+
+	// Load should return nil now
+	loaded, err = cache.LoadPendingOTP()
+	if err != nil {
+		t.Fatalf("LoadPendingOTP after delete failed: %v", err)
+	}
+	if loaded != nil {
+		t.Error("Expected nil after delete")
+	}
+}
+
+func TestPendingOTP_IsValid(t *testing.T) {
+	fresh := &PendingOTP{SavedAt: time.Now()}
+	if !fresh.IsValid() {
+		t.Error("Fresh pending OTP should be valid")
+	}
+
+	expired := &PendingOTP{SavedAt: time.Now().Add(-15 * time.Minute)}
+	if expired.IsValid() {
+		t.Error("15-minute-old pending OTP should be expired")
+	}
+}
+
+func TestPendingOTP_LoadNonExistent(t *testing.T) {
+	tmpDir := t.TempDir()
+	cache := &CredentialsCache{path: filepath.Join(tmpDir, "credentials.json")}
+
+	loaded, err := cache.LoadPendingOTP()
+	if err != nil {
+		t.Fatalf("LoadPendingOTP should not error for missing file: %v", err)
+	}
+	if loaded != nil {
+		t.Error("Expected nil for non-existent file")
+	}
+}
