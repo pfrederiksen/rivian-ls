@@ -27,9 +27,13 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Create client
+	// Create client and establish session
 	client := rivian.NewHTTPClient()
 	client.SetCredentials(cached.ToRivianCredentials())
+	if err := client.CreateSession(ctx); err != nil {
+		fmt.Printf("Error creating session: %v\n", err)
+		os.Exit(1)
+	}
 
 	// Get vehicles
 	vehicles, err := client.GetVehicles(ctx)

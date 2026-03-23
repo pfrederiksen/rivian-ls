@@ -78,6 +78,18 @@ func (c *Config) loadFromFile() error {
 		return fmt.Errorf("parse config file: %w", err)
 	}
 
+	// If config file contains a password, verify file permissions are restrictive
+	if c.Password != "" {
+		info, err := os.Stat(configPath)
+		if err == nil {
+			mode := info.Mode().Perm()
+			if mode&0077 != 0 {
+				_, _ = fmt.Fprintf(os.Stderr, "Warning: config file %s contains a password but has permissive permissions (%04o). Run: chmod 600 %s\n", configPath, mode, configPath)
+				c.Password = "" // Refuse to use password from insecure file
+			}
+		}
+	}
+
 	return nil
 }
 

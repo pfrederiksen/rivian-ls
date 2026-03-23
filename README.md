@@ -322,10 +322,13 @@ rivian-ls/
 
 ## Security & Privacy
 
-- **Credentials**: Never hardcoded. Stored in OS keychain when possible, encrypted at rest otherwise.
-- **Tokens**: Access/refresh tokens are stored securely and refreshed automatically.
-- **Data**: Vehicle telemetry snapshots are stored locally only (not sent to third parties).
+- **Credentials**: Never hardcoded or logged. Cached in `~/.config/rivian-ls/credentials.json` with `0600` permissions.
+- **Tokens**: Access/refresh tokens are stored securely and refreshed automatically. Never printed to stdout/stderr.
+- **Password input**: Prefer `RIVIAN_PASSWORD` env var or interactive prompt over `--password` flag (flags are visible in `ps` output). Config files containing passwords must have `0600` permissions or the password is rejected.
+- **Database**: SQLite file created with `0600` permissions. Contains vehicle telemetry including GPS coordinates.
+- **Data**: All data stored locally only (not sent to third parties).
 - **Privacy**: Use `--no-store` flag to disable local persistence entirely.
+- **Network**: All API calls use TLS with certificate verification. No secrets in URLs.
 
 ## Troubleshooting
 

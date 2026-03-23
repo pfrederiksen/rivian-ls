@@ -93,13 +93,10 @@ func main() {
 
 	fmt.Println("✓ Fully authenticated!")
 
-	// Try to get credentials
+	// Show token expiry (not the tokens themselves)
 	creds := client.GetCredentials()
 	if creds != nil {
-		fmt.Printf("\nTokens received:\n")
-		fmt.Printf("  Access token: %s...\n", creds.AccessToken[:20])
-		fmt.Printf("  Refresh token: %s...\n", creds.RefreshToken[:20])
-		fmt.Printf("  Expires: %s\n", creds.ExpiresAt.Format("2006-01-02 15:04:05"))
+		fmt.Printf("\nTokens received (expires: %s)\n", creds.ExpiresAt.Format("2006-01-02 15:04:05"))
 	}
 
 	// Test getting vehicles
@@ -112,7 +109,7 @@ func main() {
 
 	fmt.Printf("✓ Found %d vehicle(s):\n", len(vehicles))
 	for i, v := range vehicles {
-		fmt.Printf("  [%d] %s (%s %s) - VIN: %s\n", i, v.Name, v.Model, v.VIN, v.ID)
+		fmt.Printf("  [%d] %s (%s) - VIN: ...%s\n", i, v.Name, v.Model, v.VIN[len(v.VIN)-6:])
 	}
 
 	fmt.Println("\n✓ All authentication steps successful!")

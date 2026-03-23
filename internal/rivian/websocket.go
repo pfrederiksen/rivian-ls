@@ -74,8 +74,9 @@ func (c *WebSocketClient) connectUnlocked(ctx context.Context) error {
 
 	// Set up WebSocket dialer with headers
 	dialer := websocket.Dialer{
-		ReadBufferSize:  ReadBufferSize,
-		WriteBufferSize: WriteBufferSize,
+		ReadBufferSize:   ReadBufferSize,
+		WriteBufferSize:  WriteBufferSize,
+		HandshakeTimeout: 30 * time.Second,
 	}
 
 	headers := make(map[string][]string)
@@ -98,6 +99,7 @@ func (c *WebSocketClient) connectUnlocked(ctx context.Context) error {
 		return fmt.Errorf("dial websocket: %w", err)
 	}
 
+	conn.SetReadLimit(1 << 20) // 1 MB max message size
 	c.conn = conn
 	c.closed = false
 	c.reconnectCount = 0
@@ -268,9 +270,8 @@ func (c *WebSocketClient) handleMessage(msg WebSocketMessage) {
 // handleDisconnect attempts to reconnect
 func (c *WebSocketClient) handleDisconnect() {
 	c.mu.Lock()
-	defer c.mu.Unlock()
-
 	if c.closed {
+		c.mu.Unlock()
 		return
 	}
 
@@ -283,15 +284,24 @@ func (c *WebSocketClient) handleDisconnect() {
 	if c.reconnectCount >= MaxReconnects {
 		c.closed = true
 		close(c.closeSignal)
+		c.mu.Unlock()
 		return
 	}
 
 	c.reconnectCount++
+	c.mu.Unlock()
 
-	// Wait before reconnecting
+	// Wait before reconnecting (without holding the lock)
 	time.Sleep(ReconnectDelay)
 
 	// Attempt reconnect
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if c.closed {
+		return
+	}
+
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 

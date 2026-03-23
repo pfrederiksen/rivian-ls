@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"os"
 	"time"
 
 	_ "github.com/mattn/go-sqlite3"
@@ -18,6 +19,17 @@ type Store struct {
 
 // NewStore creates a new store at the given database path
 func NewStore(dbPath string) (*Store, error) {
+	// Create the file with restricted permissions before SQLite opens it.
+	// This prevents the default umask from creating a world-readable database
+	// that contains PII (GPS coordinates, VIN, vehicle telemetry).
+	if _, err := os.Stat(dbPath); os.IsNotExist(err) {
+		f, err := os.OpenFile(dbPath, os.O_CREATE|os.O_WRONLY, 0600)
+		if err != nil {
+			return nil, fmt.Errorf("create database file: %w", err)
+		}
+		_ = f.Close()
+	}
+
 	db, err := sql.Open("sqlite3", dbPath)
 	if err != nil {
 		return nil, fmt.Errorf("open database: %w", err)
