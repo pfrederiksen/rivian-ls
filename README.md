@@ -110,10 +110,10 @@ You'll be prompted for your email and password on first run. If MFA/OTP is enabl
 For non-interactive login (e.g., scripts or CI), use the two-phase flow:
 
 ```bash
-# Phase 1: Trigger SMS (saves OTP session to disk)
-rivian-ls --email user@example.com --password secret login
+# Phase 1: Send credentials, trigger SMS
+rivian-ls login --email user@example.com --password secret
 
-# Phase 2: Complete with OTP code (after receiving SMS)
+# Phase 2: Complete with OTP code after receiving SMS
 rivian-ls login --otp 123456
 ```
 
@@ -147,8 +147,8 @@ The CLI mode is designed for scripting, automation, and piping data to other too
 rivian-ls login
 
 # Non-interactive two-phase login:
-# Phase 1 — trigger SMS (saves OTP session to ~/.config/rivian-ls/pending_otp.json)
-rivian-ls --email user@example.com --password secret login
+# Phase 1 — send credentials, trigger SMS
+rivian-ls login --email user@example.com --password secret
 # Phase 2 — complete with OTP code after receiving SMS
 rivian-ls login --otp 123456
 

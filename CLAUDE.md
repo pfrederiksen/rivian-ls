@@ -73,7 +73,7 @@ make run
 ./rivian-ls export --since 24h     # Export last 24h of data
 
 # Non-interactive two-phase login (scripts/CI)
-./rivian-ls --email user@example.com --password secret login  # Phase 1: triggers SMS
+./rivian-ls login --email user@example.com --password secret  # Phase 1: triggers SMS
 ./rivian-ls login --otp 123456                                 # Phase 2: complete auth
 
 # Use environment variables
@@ -737,8 +737,8 @@ Authenticates with the Rivian API and verifies the session works end-to-end by f
 rivian-ls login
 
 # Non-interactive two-phase login:
-# Phase 1 — trigger SMS (saves OTP session to disk)
-rivian-ls --email user@example.com --password secret login
+# Phase 1 — send credentials, trigger SMS
+rivian-ls login --email user@example.com --password secret
 # Phase 2 — complete with OTP code after receiving SMS
 rivian-ls login --otp 123456
 
@@ -762,14 +762,19 @@ This creates a chicken-and-egg problem for non-interactive login. The solution i
 a two-phase approach:
 
 1. **Phase 1** (`login --email x --password y`): Sends credentials, triggers SMS.
-   In non-TTY mode, saves the OTP session state (otpToken, csrfToken, appSessionID,
-   email) to `~/.config/rivian-ls/pending_otp.json` and exits with an error message
-   instructing the user to run phase 2. In interactive mode, prompts for OTP directly.
+   Always saves the OTP session state (otpToken, csrfToken, appSessionID, email)
+   to `~/.config/rivian-ls/pending_otp.json`. In non-TTY mode, exits with an error
+   message instructing the user to run phase 2. In interactive mode, also prompts
+   for OTP inline (user can complete in one step or Ctrl+C and use phase 2 later).
 
 2. **Phase 2** (`login --otp <code>`): Loads the pending OTP session from disk,
    restores the session state on the HTTP client, and calls `SubmitOTP()` with the
    same CSRF session that was established in phase 1. On success, saves credentials
    and cleans up the pending OTP file.
+
+**Flag parsing**: The `login` subcommand has its own flag parser, so `--email`,
+`--password`, and `--otp` all work after the subcommand word (e.g.,
+`rivian-ls login --otp 123456`). Flags placed before the subcommand also work.
 
 Pending OTP sessions expire after 10 minutes (Rivian's server-side timeout).
 
