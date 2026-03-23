@@ -162,10 +162,15 @@ func (c *HTTPClient) Authenticate(ctx context.Context, email, password string) e
 }
 
 // SubmitOTP submits a one-time password for MFA authentication.
+// Must be called after Authenticate() returns OTPRequiredError — the OTP token
+// is bound to the CSRF session established during that call, so the same
+// csrfToken and appSessionID must still be present on the client.
 func (c *HTTPClient) SubmitOTP(ctx context.Context, code string) error {
 	c.mu.RLock()
 	otpToken := c.otpToken
 	email := c.email
+	csrfToken := c.csrfToken
+	appSessionID := c.appSessionID
 	c.mu.RUnlock()
 
 	if otpToken == "" {
@@ -174,6 +179,10 @@ func (c *HTTPClient) SubmitOTP(ctx context.Context, code string) error {
 
 	if email == "" {
 		return fmt.Errorf("no email stored - call Authenticate first")
+	}
+
+	if csrfToken == "" || appSessionID == "" {
+		return fmt.Errorf("session state lost - csrfToken or appSessionID missing (were set during Authenticate)")
 	}
 
 	variables := map[string]interface{}{

@@ -236,6 +236,14 @@ func TestSubmitOTP_Success(t *testing.T) {
 				t.Error("Expected LoginWithOTP mutation")
 			}
 
+			// Verify session headers from Authenticate() are carried through
+			if r.Header.Get("a-sess") != "test-app-session" {
+				t.Errorf("Expected a-sess header on OTP call, got %q", r.Header.Get("a-sess"))
+			}
+			if r.Header.Get("csrf-token") != "test-csrf-token" {
+				t.Errorf("Expected csrf-token header on OTP call, got %q", r.Header.Get("csrf-token"))
+			}
+
 			// Verify the email is passed in variables
 			if req.Variables["email"] != "test@example.com" {
 				t.Errorf("Expected email %s, got %v", "test@example.com", req.Variables["email"])
@@ -305,6 +313,26 @@ func TestSubmitOTP_NoSession(t *testing.T) {
 
 	if !strings.Contains(err.Error(), "no OTP session active") {
 		t.Errorf("Expected 'no OTP session active' error, got: %v", err)
+	}
+}
+
+func TestSubmitOTP_MissingSession(t *testing.T) {
+	// SubmitOTP should fail if csrfToken/appSessionID were cleared
+	// between Authenticate() and SubmitOTP()
+	client := NewHTTPClient()
+	client.mu.Lock()
+	client.otpToken = "otp-token-123"
+	client.email = "test@example.com"
+	// Deliberately leave csrfToken and appSessionID empty
+	client.mu.Unlock()
+
+	err := client.SubmitOTP(context.Background(), "123456")
+	if err == nil {
+		t.Fatal("Expected error when session state is missing")
+	}
+
+	if !strings.Contains(err.Error(), "session state lost") {
+		t.Errorf("Expected 'session state lost' error, got: %v", err)
 	}
 }
 
