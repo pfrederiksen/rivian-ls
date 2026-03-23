@@ -66,10 +66,14 @@ make run
 # Run with configuration options
 ./rivian-ls --verbose              # TUI with debug logging
 ./rivian-ls --no-store             # TUI without saving state
+./rivian-ls login                  # Authenticate and verify credentials
 ./rivian-ls status                 # One-time status snapshot
 ./rivian-ls status --format json   # JSON output
 ./rivian-ls watch                  # Stream real-time updates
 ./rivian-ls export --since 24h     # Export last 24h of data
+
+# Non-interactive login (scripts/CI)
+./rivian-ls --email user@example.com --password secret --otp 123456 login
 
 # Use environment variables
 export RIVIAN_EMAIL="your@email.com"
@@ -703,15 +707,47 @@ go test -v -run TestAuthentication ./internal/rivian/
 
 ## Headless CLI Commands
 
-The CLI provides three main commands for non-interactive vehicle monitoring and data export, implemented in `internal/cli/`.
+The CLI provides four commands for authentication, vehicle monitoring, and data export.
 
 ### Command Overview
 
 | Command | Purpose | Output Formats |
 |---------|---------|----------------|
+| `login` | Authenticate and verify credentials | text |
 | `status` | Current vehicle state snapshot | JSON, YAML, CSV, text, table |
 | `watch` | Real-time streaming updates | JSON, YAML, CSV, text, table |
 | `export` | Historical data export | JSON, YAML, CSV |
+
+### login - Authentication
+
+Authenticates with the Rivian API and verifies the session works end-to-end by fetching vehicles.
+
+**Usage:**
+```bash
+# Interactive (prompts for email, password, OTP as needed)
+rivian-ls login
+
+# Non-interactive (all credentials via flags)
+rivian-ls --email user@example.com --password secret --otp 123456 login
+
+# Using environment variables
+RIVIAN_EMAIL=user@example.com RIVIAN_PASSWORD=secret rivian-ls login
+
+# Using config file (email/password pre-configured)
+rivian-ls login
+```
+
+**Behavior:**
+- Authenticates (via cache, refresh, or full login flow)
+- Creates a fresh API session (CSRF token + app session ID)
+- Validates by querying the vehicle list
+- Prints vehicle count and summary on success
+- In non-TTY mode, returns clear error messages indicating which flag/env var to provide
+
+**Non-TTY Error Messages:**
+- `email required: use --email flag, RIVIAN_EMAIL env var, or config file`
+- `password required: use --password flag, RIVIAN_PASSWORD env var, or config file`
+- `OTP required: use --otp flag for non-interactive login`
 
 ### status - Current State Snapshot
 

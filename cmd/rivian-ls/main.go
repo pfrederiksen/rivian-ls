@@ -74,6 +74,7 @@ func run(args []string) int {
 	fs := flag.NewFlagSet("rivian-ls", flag.ExitOnError)
 	email := fs.String("email", cfg.Email, "Email address for authentication")
 	password := fs.String("password", cfg.Password, "Password (will prompt if not provided)")
+	otp := fs.String("otp", "", "OTP/MFA code (for non-interactive login)")
 	vehicleIndex := fs.Int("vehicle", cfg.Vehicle, "Vehicle index (0-based)")
 	dbPath := fs.String("db", cfg.DBPath, "Database path (default: ~/.local/share/rivian-ls/state.db)")
 	versionFlag := fs.Bool("version", false, "Print version and exit")
@@ -135,8 +136,13 @@ func run(args []string) int {
 		credCache = nil
 	}
 
+	// Handle login subcommand (auth-only, no vehicle query needed)
+	if subcommand == "login" {
+		return runLoginCommand(ctx, client, credCache, email, password, otp)
+	}
+
 	// Try to authenticate
-	if err := authenticate(ctx, client, credCache, email, password); err != nil {
+	if err := authenticate(ctx, client, credCache, email, password, otp); err != nil {
 		_, _ = fmt.Fprintf(os.Stderr, "Authentication failed: %v\n", err)
 		return ExitAuthFailure
 	}
@@ -192,22 +198,34 @@ func run(args []string) int {
 		return ExitSuccess
 	default:
 		_, _ = fmt.Fprintf(os.Stderr, "Unknown command: %s\n", subcommand)
-		_, _ = fmt.Fprintf(os.Stderr, "Available commands: status, watch, export\n")
+		_, _ = fmt.Fprintf(os.Stderr, "Available commands: login, status, watch, export\n")
 		return ExitInvalidArgs
 	}
 }
 
-func authenticate(ctx context.Context, client *rivian.HTTPClient, credCache *auth.CredentialsCache, email, password *string) error {
+// isInteractive returns true if stdin is a terminal (TTY).
+func isInteractive() bool {
+	return term.IsTerminal(int(os.Stdin.Fd()))
+}
+
+func authenticate(ctx context.Context, client *rivian.HTTPClient, credCache *auth.CredentialsCache, email, password, otp *string) error {
 	// If no email provided, try to load from cache
 	if *email == "" {
 		if credCache != nil {
 			cached, err := credCache.Load()
 			if err == nil && cached != nil && cached.IsValid() {
 				client.SetCredentials(cached.ToRivianCredentials())
+				// Create a fresh session so CSRF token and app session ID are set
+				if err := client.CreateSession(ctx); err != nil {
+					return fmt.Errorf("create session: %w", err)
+				}
 				return nil
 			}
 		}
 
+		if !isInteractive() {
+			return fmt.Errorf("email required: use --email flag, RIVIAN_EMAIL env var, or config file")
+		}
 		fmt.Print("Email: ")
 		scanner := bufio.NewScanner(os.Stdin)
 		scanner.Scan()
@@ -223,15 +241,21 @@ func authenticate(ctx context.Context, client *rivian.HTTPClient, credCache *aut
 			if cached.Email == *email {
 				if cached.IsValid() {
 					client.SetCredentials(cached.ToRivianCredentials())
+					// Create a fresh session so CSRF token and app session ID are set
+					if err := client.CreateSession(ctx); err != nil {
+						return fmt.Errorf("create session: %w", err)
+					}
 					needsAuth = false
 				} else {
-					// Try to refresh
+					// Try to refresh - need a session first for the API call
 					client.SetCredentials(cached.ToRivianCredentials())
-					if err := client.RefreshToken(ctx); err == nil {
-						needsAuth = false
-						// Save refreshed credentials
-						if creds := client.GetCredentials(); creds != nil {
-							_ = credCache.Save(*email, creds)
+					if err := client.CreateSession(ctx); err == nil {
+						if err := client.RefreshToken(ctx); err == nil {
+							needsAuth = false
+							// Save refreshed credentials
+							if creds := client.GetCredentials(); creds != nil {
+								_ = credCache.Save(*email, creds)
+							}
 						}
 					}
 				}
@@ -243,6 +267,9 @@ func authenticate(ctx context.Context, client *rivian.HTTPClient, credCache *aut
 	if needsAuth {
 		// Prompt for password if not provided
 		if *password == "" {
+			if !isInteractive() {
+				return fmt.Errorf("password required: use --password flag, RIVIAN_PASSWORD env var, or config file")
+			}
 			fmt.Print("Password: ")
 			passBytes, err := term.ReadPassword(int(os.Stdin.Fd()))
 			fmt.Println()
@@ -257,10 +284,16 @@ func authenticate(ctx context.Context, client *rivian.HTTPClient, credCache *aut
 		if err != nil {
 			// Check if it's OTP required
 			if _, ok := err.(*rivian.OTPRequiredError); ok {
-				fmt.Print("Enter OTP code: ")
-				scanner := bufio.NewScanner(os.Stdin)
-				scanner.Scan()
-				otpCode := strings.TrimSpace(scanner.Text())
+				otpCode := *otp
+				if otpCode == "" {
+					if !isInteractive() {
+						return fmt.Errorf("OTP required: use --otp flag for non-interactive login")
+					}
+					fmt.Print("Enter OTP code: ")
+					scanner := bufio.NewScanner(os.Stdin)
+					scanner.Scan()
+					otpCode = strings.TrimSpace(scanner.Text())
+				}
 
 				if err := client.SubmitOTP(ctx, otpCode); err != nil {
 					return fmt.Errorf("OTP submission failed: %w", err)
@@ -286,6 +319,31 @@ func authenticate(ctx context.Context, client *rivian.HTTPClient, credCache *aut
 	}
 
 	return nil
+}
+
+func runLoginCommand(ctx context.Context, client *rivian.HTTPClient, credCache *auth.CredentialsCache, email, password, otp *string) int {
+	if err := authenticate(ctx, client, credCache, email, password, otp); err != nil {
+		_, _ = fmt.Fprintf(os.Stderr, "Authentication failed: %v\n", err)
+		return ExitAuthFailure
+	}
+
+	// Verify by fetching vehicles (validates the session works end-to-end)
+	vehicles, err := client.GetVehicles(ctx)
+	if err != nil {
+		_, _ = fmt.Fprintf(os.Stderr, "Login succeeded but API validation failed: %v\n", err)
+		return ExitAPIError
+	}
+
+	fmt.Printf("Authenticated successfully. Found %d vehicle(s).\n", len(vehicles))
+	for i, v := range vehicles {
+		name := v.Name
+		if name == "" {
+			name = v.Model
+		}
+		fmt.Printf("  [%d] %s (VIN: ...%s)\n", i, name, v.VIN[len(v.VIN)-6:])
+	}
+
+	return ExitSuccess
 }
 
 func runStatusCommand(ctx context.Context, client rivian.Client, db *store.Store, vehicleID string, args []string) int {
