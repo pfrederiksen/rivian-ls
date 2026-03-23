@@ -220,7 +220,8 @@ func (c *HTTPClient) doGraphQL(ctx context.Context, query string, variables map[
 	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
+		// Limit error body read to 4KB to prevent memory exhaustion
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
 		return fmt.Errorf("unexpected status %d: %s", resp.StatusCode, string(body))
 	}
 

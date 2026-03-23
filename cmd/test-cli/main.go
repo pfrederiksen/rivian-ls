@@ -153,7 +153,7 @@ func main() {
 	}
 
 	vehicle := vehicles[*vehicleIndex]
-	fmt.Printf("✓ Found vehicle: %s (%s %s)\n", vehicle.Name, vehicle.Model, vehicle.VIN)
+	fmt.Printf("✓ Found vehicle: %s (%s ...%s)\n", vehicle.Name, vehicle.Model, vehicle.VIN[len(vehicle.VIN)-6:])
 
 	// Create store
 	fmt.Printf("\nOpening database: %s\n", *dbPath)

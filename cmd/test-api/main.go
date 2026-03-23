@@ -55,7 +55,6 @@ func main() {
 	// Show credentials (for debugging)
 	creds := client.GetCredentials()
 	if creds != nil {
-		fmt.Printf("   Access token: %s...\n", creds.AccessToken[:20])
 		fmt.Printf("   Expires at: %s\n\n", creds.ExpiresAt.Format("2006-01-02 15:04:05"))
 	}
 
@@ -69,7 +68,7 @@ func main() {
 
 	fmt.Printf("   ✅ Found %d vehicle(s)\n", len(vehicles))
 	for i, v := range vehicles {
-		fmt.Printf("   [%d] %s - %s (VIN: %s)\n", i+1, v.Name, v.Model, v.VIN)
+		fmt.Printf("   [%d] %s - %s (VIN: ...%s)\n", i+1, v.Name, v.Model, v.VIN[len(v.VIN)-6:])
 	}
 
 	if len(vehicles) == 0 {

@@ -115,6 +115,12 @@ func run(args []string) int {
 	_ = quiet
 	_ = verbose
 
+	// Warn if --password flag is used (visible in process listing)
+	if *password != "" && cfg.Password == "" {
+		// Password came from flag, not config/env
+		_, _ = fmt.Fprintf(os.Stderr, "Warning: --password flag is visible in process listings. Use RIVIAN_PASSWORD env var instead.\n")
+	}
+
 	// Ensure database directory exists (unless --no-store is set)
 	if !*noStore {
 		dbDir := filepath.Dir(*dbPath)
@@ -221,6 +227,13 @@ func isInteractive() bool {
 }
 
 func authenticate(ctx context.Context, client *rivian.HTTPClient, credCache *auth.CredentialsCache, email, password, otp *string) error {
+	// Clean up stale pending OTP sessions on startup
+	if credCache != nil && *otp == "" {
+		if pending, err := credCache.LoadPendingOTP(); err == nil && pending != nil && !pending.IsValid() {
+			_ = credCache.DeletePendingOTP()
+		}
+	}
+
 	// Phase 2: If --otp is provided, check for a pending OTP session first.
 	// This completes a two-phase login:
 	//   Phase 1: rivian-ls login --email x --password y   → triggers SMS
