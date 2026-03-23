@@ -216,10 +216,13 @@ func authenticate(ctx context.Context, client *rivian.HTTPClient, credCache *aut
 			if err == nil && cached != nil && cached.IsValid() {
 				client.SetCredentials(cached.ToRivianCredentials())
 				// Create a fresh session so CSRF token and app session ID are set
-				if err := client.CreateSession(ctx); err != nil {
-					return fmt.Errorf("create session: %w", err)
+				if err := client.CreateSession(ctx); err == nil {
+					return nil
 				}
-				return nil
+				// Session creation failed — cached token may be invalid server-side.
+				// Fall through to prompt for credentials.
+				_, _ = fmt.Fprintf(os.Stderr, "Warning: Cached session expired, re-authentication required\n")
+				_ = credCache.Delete()
 			}
 		}
 
@@ -242,10 +245,13 @@ func authenticate(ctx context.Context, client *rivian.HTTPClient, credCache *aut
 				if cached.IsValid() {
 					client.SetCredentials(cached.ToRivianCredentials())
 					// Create a fresh session so CSRF token and app session ID are set
-					if err := client.CreateSession(ctx); err != nil {
-						return fmt.Errorf("create session: %w", err)
+					if err := client.CreateSession(ctx); err == nil {
+						needsAuth = false
+					} else {
+						// Token looks valid locally but rejected server-side
+						_, _ = fmt.Fprintf(os.Stderr, "Warning: Cached session expired, re-authentication required\n")
+						_ = credCache.Delete()
 					}
-					needsAuth = false
 				} else {
 					// Try to refresh - need a session first for the API call
 					client.SetCredentials(cached.ToRivianCredentials())
@@ -256,7 +262,13 @@ func authenticate(ctx context.Context, client *rivian.HTTPClient, credCache *aut
 							if creds := client.GetCredentials(); creds != nil {
 								_ = credCache.Save(*email, creds)
 							}
+						} else {
+							// Refresh failed — clear stale cache
+							_ = credCache.Delete()
 						}
+					} else {
+						// Session creation failed — clear stale cache
+						_ = credCache.Delete()
 					}
 				}
 			}
