@@ -298,13 +298,18 @@ func authenticate(ctx context.Context, client *rivian.HTTPClient, credCache *aut
 			if _, ok := err.(*rivian.OTPRequiredError); ok {
 				otpCode := *otp
 				if otpCode == "" {
-					if !isInteractive() {
-						return fmt.Errorf("OTP required: use --otp flag for non-interactive login")
-					}
-					fmt.Print("Enter OTP code: ")
+					// Always read OTP from stdin, even in non-TTY mode.
+					// Unlike email/password (which can be preconfigured), OTP is
+					// generated server-side only after the login attempt triggers
+					// the SMS — so stdin is the only way to provide it reactively.
+					// Usage: rivian-ls --email x --password y login <<< "123456"
+					_, _ = fmt.Fprintf(os.Stderr, "OTP code sent. Enter OTP code: ")
 					scanner := bufio.NewScanner(os.Stdin)
 					scanner.Scan()
 					otpCode = strings.TrimSpace(scanner.Text())
+					if otpCode == "" {
+						return fmt.Errorf("OTP required but no code provided")
+					}
 				}
 
 				if err := client.SubmitOTP(ctx, otpCode); err != nil {

@@ -108,7 +108,11 @@ You'll be prompted for your email and password on first run. If MFA/OTP is enabl
 To authenticate non-interactively (e.g., in scripts or CI):
 
 ```bash
+# If you already have the OTP code (e.g., retry after SMS was sent)
 rivian-ls --email user@example.com --password secret --otp 123456 login
+
+# OTP is read from stdin after SMS is triggered — provide it via pipe
+rivian-ls --email user@example.com --password secret login <<< "123456"
 ```
 
 **Navigation:**
@@ -140,10 +144,13 @@ The CLI mode is designed for scripting, automation, and piping data to other too
 # Interactive login (prompts for email, password, OTP)
 rivian-ls login
 
-# Non-interactive login (for scripts/CI)
+# Non-interactive with known OTP (e.g., retry after SMS was sent)
 rivian-ls --email user@example.com --password secret --otp 123456 login
 
-# Using environment variables
+# Non-interactive — OTP read from stdin after SMS is triggered
+rivian-ls --email user@example.com --password secret login <<< "123456"
+
+# Using environment variables (OTP still read from stdin if needed)
 RIVIAN_EMAIL=user@example.com RIVIAN_PASSWORD=secret rivian-ls login
 ```
 
@@ -199,7 +206,7 @@ rivian-ls export --since 24h --format yaml > last-24h.yaml
 
 - `--email <email>`: Specify email (prompts if not provided, required in non-TTY mode)
 - `--password <password>`: Specify password (prompts securely if not provided, required in non-TTY mode)
-- `--otp <code>`: Specify MFA/OTP code (required in non-TTY mode when MFA is enabled)
+- `--otp <code>`: Specify MFA/OTP code upfront (if not provided, OTP is read from stdin after SMS is triggered)
 - `--vehicle <index>`: Select vehicle by index (0-based, default: 0)
 - `--db <path>`: Custom database path (default: `~/.local/share/rivian-ls/state.db`)
 - `--format <format>`: Output format for CLI commands (`text`, `json`, `yaml`, `csv`, `table`)

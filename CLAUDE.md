@@ -74,6 +74,8 @@ make run
 
 # Non-interactive login (scripts/CI)
 ./rivian-ls --email user@example.com --password secret --otp 123456 login
+# Or read OTP from stdin after SMS is triggered
+./rivian-ls --email user@example.com --password secret login <<< "123456"
 
 # Use environment variables
 export RIVIAN_EMAIL="your@email.com"
@@ -727,10 +729,13 @@ Authenticates with the Rivian API and verifies the session works end-to-end by f
 # Interactive (prompts for email, password, OTP as needed)
 rivian-ls login
 
-# Non-interactive (all credentials via flags)
+# Non-interactive with known OTP (e.g., retry after SMS was sent)
 rivian-ls --email user@example.com --password secret --otp 123456 login
 
-# Using environment variables
+# Non-interactive — OTP read from stdin after SMS is triggered
+rivian-ls --email user@example.com --password secret login <<< "123456"
+
+# Using environment variables (OTP still read from stdin if needed)
 RIVIAN_EMAIL=user@example.com RIVIAN_PASSWORD=secret rivian-ls login
 
 # Using config file (email/password pre-configured)
@@ -742,12 +747,19 @@ rivian-ls login
 - Creates a fresh API session (CSRF token + app session ID)
 - Validates by querying the vehicle list
 - Prints vehicle count and summary on success
-- In non-TTY mode, returns clear error messages indicating which flag/env var to provide
+- In non-TTY mode, returns clear error messages for missing email/password
+- OTP is always readable from stdin (even non-TTY) since it can't be preconfigured
+
+**OTP Handling:**
+OTP codes are inherently reactive — the SMS is only sent after the login attempt.
+The `--otp` flag is a convenience for retries when you already have the code.
+When `--otp` is not provided and MFA is required, the tool reads OTP from stdin
+regardless of TTY status. The prompt is written to stderr so it doesn't interfere
+with stdout piping.
 
 **Non-TTY Error Messages:**
 - `email required: use --email flag, RIVIAN_EMAIL env var, or config file`
 - `password required: use --password flag, RIVIAN_PASSWORD env var, or config file`
-- `OTP required: use --otp flag for non-interactive login`
 
 ### status - Current State Snapshot
 
