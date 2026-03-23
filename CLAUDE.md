@@ -72,10 +72,9 @@ make run
 ./rivian-ls watch                  # Stream real-time updates
 ./rivian-ls export --since 24h     # Export last 24h of data
 
-# Non-interactive login (scripts/CI)
-./rivian-ls --email user@example.com --password secret --otp 123456 login
-# Or read OTP from stdin after SMS is triggered
-./rivian-ls --email user@example.com --password secret login <<< "123456"
+# Non-interactive two-phase login (scripts/CI)
+./rivian-ls --email user@example.com --password secret login  # Phase 1: triggers SMS
+./rivian-ls login --otp 123456                                 # Phase 2: complete auth
 
 # Use environment variables
 export RIVIAN_EMAIL="your@email.com"
@@ -737,13 +736,13 @@ Authenticates with the Rivian API and verifies the session works end-to-end by f
 # Interactive (prompts for email, password, OTP as needed)
 rivian-ls login
 
-# Non-interactive with known OTP (e.g., retry after SMS was sent)
-rivian-ls --email user@example.com --password secret --otp 123456 login
+# Non-interactive two-phase login:
+# Phase 1 — trigger SMS (saves OTP session to disk)
+rivian-ls --email user@example.com --password secret login
+# Phase 2 — complete with OTP code after receiving SMS
+rivian-ls login --otp 123456
 
-# Non-interactive — OTP read from stdin after SMS is triggered
-rivian-ls --email user@example.com --password secret login <<< "123456"
-
-# Using environment variables (OTP still read from stdin if needed)
+# Using environment variables
 RIVIAN_EMAIL=user@example.com RIVIAN_PASSWORD=secret rivian-ls login
 
 # Using config file (email/password pre-configured)
@@ -756,18 +755,28 @@ rivian-ls login
 - Validates by querying the vehicle list
 - Prints vehicle count and summary on success
 - In non-TTY mode, returns clear error messages for missing email/password
-- OTP is always readable from stdin (even non-TTY) since it can't be preconfigured
 
-**OTP Handling:**
+**Two-Phase OTP Flow:**
 OTP codes are inherently reactive — the SMS is only sent after the login attempt.
-The `--otp` flag is a convenience for retries when you already have the code.
-When `--otp` is not provided and MFA is required, the tool reads OTP from stdin
-regardless of TTY status. The prompt is written to stderr so it doesn't interfere
-with stdout piping.
+This creates a chicken-and-egg problem for non-interactive login. The solution is
+a two-phase approach:
+
+1. **Phase 1** (`login --email x --password y`): Sends credentials, triggers SMS.
+   In non-TTY mode, saves the OTP session state (otpToken, csrfToken, appSessionID,
+   email) to `~/.config/rivian-ls/pending_otp.json` and exits with an error message
+   instructing the user to run phase 2. In interactive mode, prompts for OTP directly.
+
+2. **Phase 2** (`login --otp <code>`): Loads the pending OTP session from disk,
+   restores the session state on the HTTP client, and calls `SubmitOTP()` with the
+   same CSRF session that was established in phase 1. On success, saves credentials
+   and cleans up the pending OTP file.
+
+Pending OTP sessions expire after 10 minutes (Rivian's server-side timeout).
 
 **Non-TTY Error Messages:**
 - `email required: use --email flag, RIVIAN_EMAIL env var, or config file`
 - `password required: use --password flag, RIVIAN_PASSWORD env var, or config file`
+- `OTP sent. Complete login with: rivian-ls login --otp <code>`
 
 ### status - Current State Snapshot
 

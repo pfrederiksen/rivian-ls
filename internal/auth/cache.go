@@ -111,3 +111,63 @@ func (c *CachedCredentials) ToRivianCredentials() *rivian.Credentials {
 func (c *CredentialsCache) Path() string {
 	return c.path
 }
+
+// PendingOTP represents a pending OTP session saved to disk.
+// This enables two-phase non-interactive login:
+//
+//	Phase 1: rivian-ls login --email x --password y  → triggers SMS, saves session
+//	Phase 2: rivian-ls login --otp 123456             → completes authentication
+type PendingOTP struct {
+	Email        string    `json:"email"`
+	OTPToken     string    `json:"otp_token"`
+	CSRFToken    string    `json:"csrf_token"`
+	AppSessionID string    `json:"app_session_id"`
+	SavedAt      time.Time `json:"saved_at"`
+}
+
+// IsValid checks if the pending OTP session is still usable.
+// OTP sessions typically expire after ~10 minutes.
+func (p *PendingOTP) IsValid() bool {
+	return time.Since(p.SavedAt) < 10*time.Minute
+}
+
+func (c *CredentialsCache) otpPath() string {
+	return filepath.Join(filepath.Dir(c.path), "pending_otp.json")
+}
+
+// SavePendingOTP persists a pending OTP session to disk.
+func (c *CredentialsCache) SavePendingOTP(session *PendingOTP) error {
+	session.SavedAt = time.Now()
+	data, err := json.MarshalIndent(session, "", "  ")
+	if err != nil {
+		return fmt.Errorf("marshal OTP session: %w", err)
+	}
+	if err := os.WriteFile(c.otpPath(), data, 0600); err != nil {
+		return fmt.Errorf("write OTP session: %w", err)
+	}
+	return nil
+}
+
+// LoadPendingOTP reads a pending OTP session from disk.
+func (c *CredentialsCache) LoadPendingOTP() (*PendingOTP, error) {
+	data, err := os.ReadFile(c.otpPath())
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("read OTP session: %w", err)
+	}
+	var session PendingOTP
+	if err := json.Unmarshal(data, &session); err != nil {
+		return nil, fmt.Errorf("parse OTP session: %w", err)
+	}
+	return &session, nil
+}
+
+// DeletePendingOTP removes a pending OTP session from disk.
+func (c *CredentialsCache) DeletePendingOTP() error {
+	if err := os.Remove(c.otpPath()); err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("delete OTP session: %w", err)
+	}
+	return nil
+}

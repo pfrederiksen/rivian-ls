@@ -209,6 +209,34 @@ func isInteractive() bool {
 }
 
 func authenticate(ctx context.Context, client *rivian.HTTPClient, credCache *auth.CredentialsCache, email, password, otp *string) error {
+	// Phase 2: If --otp is provided, check for a pending OTP session first.
+	// This completes a two-phase login:
+	//   Phase 1: rivian-ls login --email x --password y   → triggers SMS
+	//   Phase 2: rivian-ls login --otp 123456              → completes auth
+	if *otp != "" && credCache != nil {
+		pending, err := credCache.LoadPendingOTP()
+		if err == nil && pending != nil && pending.IsValid() {
+			client.SetSessionTokens(pending.CSRFToken, pending.AppSessionID)
+			client.SetOTPState(pending.OTPToken, pending.Email)
+
+			if err := client.SubmitOTP(ctx, *otp); err != nil {
+				_ = credCache.DeletePendingOTP()
+				return fmt.Errorf("OTP submission failed: %w", err)
+			}
+
+			// Clean up pending OTP and save credentials
+			_ = credCache.DeletePendingOTP()
+
+			if creds := client.GetCredentials(); creds != nil {
+				if err := credCache.Save(pending.Email, creds); err != nil {
+					_, _ = fmt.Fprintf(os.Stderr, "Warning: Could not save credentials: %v\n", err)
+				}
+			}
+			return nil
+		}
+		// No valid pending session — fall through to normal auth
+	}
+
 	// If no email provided, try to load from cache
 	if *email == "" {
 		if credCache != nil {
@@ -298,11 +326,21 @@ func authenticate(ctx context.Context, client *rivian.HTTPClient, credCache *aut
 			if _, ok := err.(*rivian.OTPRequiredError); ok {
 				otpCode := *otp
 				if otpCode == "" {
-					// Always read OTP from stdin, even in non-TTY mode.
-					// Unlike email/password (which can be preconfigured), OTP is
-					// generated server-side only after the login attempt triggers
-					// the SMS — so stdin is the only way to provide it reactively.
-					// Usage: rivian-ls --email x --password y login <<< "123456"
+					if !isInteractive() {
+						// Non-interactive: save the OTP session for phase 2
+						if credCache != nil {
+							pending := &auth.PendingOTP{
+								Email:        *email,
+								OTPToken:     client.GetOTPToken(),
+								CSRFToken:    client.GetCSRFToken(),
+								AppSessionID: client.GetAppSessionID(),
+							}
+							if saveErr := credCache.SavePendingOTP(pending); saveErr != nil {
+								return fmt.Errorf("failed to save OTP session: %w", saveErr)
+							}
+						}
+						return fmt.Errorf("OTP sent. Complete login with: rivian-ls login --otp <code>")
+					}
 					_, _ = fmt.Fprintf(os.Stderr, "OTP code sent. Enter OTP code: ")
 					scanner := bufio.NewScanner(os.Stdin)
 					scanner.Scan()
@@ -332,6 +370,8 @@ func authenticate(ctx context.Context, client *rivian.HTTPClient, credCache *aut
 					_, _ = fmt.Fprintf(os.Stderr, "Warning: Could not save credentials: %v\n", err)
 				}
 			}
+			// Clean up any leftover pending OTP
+			_ = credCache.DeletePendingOTP()
 		}
 	}
 
