@@ -107,7 +107,7 @@ func (m *VehicleMenu) Render(width, height int) string {
 		}
 
 		// Number
-		line.WriteString(fmt.Sprintf("%d. ", i+1))
+		fmt.Fprintf(&line, "%d. ", i+1)
 
 		// Vehicle info
 		vehicleInfo := fmt.Sprintf("%s %q", vehicle.Model, vehicle.Name)
