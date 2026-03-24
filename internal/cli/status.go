@@ -20,13 +20,13 @@ type StatusOptions struct {
 
 // StatusCommand displays current vehicle state
 type StatusCommand struct {
-	client      rivian.Client
-	store       *store.Store
-	vehicleID   string
-	vehicleName string
-	vehicleVIN  string
+	client       rivian.Client
+	store        *store.Store
+	vehicleID    string
+	vehicleName  string
+	vehicleVIN   string
 	vehicleModel string
-	output      io.Writer
+	output       io.Writer
 }
 
 // NewStatusCommand creates a new status command

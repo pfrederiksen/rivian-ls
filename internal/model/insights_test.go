@@ -221,10 +221,10 @@ func TestHasCriticalIssues(t *testing.T) {
 
 func TestGetIssues(t *testing.T) {
 	tests := []struct {
-		name       string
-		state      *VehicleState
-		wantCount  int
-		wantAny    string // Check if any issue contains this string
+		name      string
+		state     *VehicleState
+		wantCount int
+		wantAny   string // Check if any issue contains this string
 	}{
 		{
 			name: "critical range",
@@ -280,15 +280,15 @@ func TestGetIssues(t *testing.T) {
 		{
 			name: "no issues",
 			state: &VehicleState{
-				IsOnline:      true,
-				RangeStatus:   RangeStatusNormal,
-				BatteryLevel:  90,
-				ChargeLimit:   80,
-				Doors:         Closures{ClosureStatusClosed, ClosureStatusClosed, ClosureStatusClosed, ClosureStatusClosed},
-				Windows:       Closures{ClosureStatusClosed, ClosureStatusClosed, ClosureStatusClosed, ClosureStatusClosed},
-				Frunk:         ClosureStatusClosed,
-				Liftgate:      ClosureStatusClosed,
-				IsLocked:      true,
+				IsOnline:     true,
+				RangeStatus:  RangeStatusNormal,
+				BatteryLevel: 90,
+				ChargeLimit:  80,
+				Doors:        Closures{ClosureStatusClosed, ClosureStatusClosed, ClosureStatusClosed, ClosureStatusClosed},
+				Windows:      Closures{ClosureStatusClosed, ClosureStatusClosed, ClosureStatusClosed, ClosureStatusClosed},
+				Frunk:        ClosureStatusClosed,
+				Liftgate:     ClosureStatusClosed,
+				IsLocked:     true,
 			},
 			wantCount: 0,
 		},

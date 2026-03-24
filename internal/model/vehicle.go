@@ -19,12 +19,12 @@ type VehicleState struct {
 	UpdatedAt time.Time
 
 	// Battery & Charging
-	BatteryLevel    float64   // Percentage (0-100)
-	BatteryCapacity float64   // kWh (total capacity)
-	RangeEstimate   float64   // Miles remaining
+	BatteryLevel    float64 // Percentage (0-100)
+	BatteryCapacity float64 // kWh (total capacity)
+	RangeEstimate   float64 // Miles remaining
 	ChargeState     ChargeState
-	ChargeLimit     int       // Percentage (0-100)
-	ChargingRate    *float64  // kW (nil if not charging)
+	ChargeLimit     int        // Percentage (0-100)
+	ChargingRate    *float64   // kW (nil if not charging)
 	TimeToCharge    *time.Time // When charging will complete (nil if not charging)
 
 	// Location
@@ -137,7 +137,7 @@ type TirePressures struct {
 	RearLeftStatus   TirePressureStatus
 	RearRightStatus  TirePressureStatus
 
-	UpdatedAt  time.Time
+	UpdatedAt time.Time
 }
 
 // AnyLow returns true if any tire is below the threshold (typically 30 PSI).

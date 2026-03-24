@@ -14,7 +14,7 @@ type Event interface {
 
 // VehicleListReceived is emitted when we receive the vehicle list from the API.
 type VehicleListReceived struct {
-	Vehicles []rivian.Vehicle
+	Vehicles  []rivian.Vehicle
 	VehicleID string // The vehicle we're tracking
 }
 
@@ -114,7 +114,7 @@ func (e PartialStateUpdate) ApplyTo(current *VehicleState) *VehicleState {
 			if v, ok := value.(float64); ok {
 				updated.CabinTemp = &v
 			}
-		// Add more fields as needed for WebSocket updates
+			// Add more fields as needed for WebSocket updates
 		}
 	}
 

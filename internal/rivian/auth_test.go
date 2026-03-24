@@ -33,9 +33,9 @@ func TestAuthenticate_Success(t *testing.T) {
 			response := map[string]interface{}{
 				"data": map[string]interface{}{
 					"createCsrfToken": map[string]interface{}{
-						"__typename":       "CSRFTokenResponse",
-						"csrfToken":        "test-csrf-token",
-						"appSessionToken":  "test-app-session",
+						"__typename":      "CSRFTokenResponse",
+						"csrfToken":       "test-csrf-token",
+						"appSessionToken": "test-app-session",
 					},
 				},
 			}
@@ -65,10 +65,10 @@ func TestAuthenticate_Success(t *testing.T) {
 			response := map[string]interface{}{
 				"data": map[string]interface{}{
 					"login": map[string]interface{}{
-						"__typename":        "MobileLoginResponse",
-						"accessToken":       "test-access-token",
-						"refreshToken":      "test-refresh-token",
-						"userSessionToken":  "test-user-session",
+						"__typename":       "MobileLoginResponse",
+						"accessToken":      "test-access-token",
+						"refreshToken":     "test-refresh-token",
+						"userSessionToken": "test-user-session",
 					},
 				},
 			}
@@ -126,9 +126,9 @@ func TestAuthenticate_OTPRequired(t *testing.T) {
 			response := map[string]interface{}{
 				"data": map[string]interface{}{
 					"createCsrfToken": map[string]interface{}{
-						"__typename":       "CSRFTokenResponse",
-						"csrfToken":        "test-csrf-token",
-						"appSessionToken":  "test-app-session",
+						"__typename":      "CSRFTokenResponse",
+						"csrfToken":       "test-csrf-token",
+						"appSessionToken": "test-app-session",
 					},
 				},
 			}
@@ -201,9 +201,9 @@ func TestSubmitOTP_Success(t *testing.T) {
 			response := map[string]interface{}{
 				"data": map[string]interface{}{
 					"createCsrfToken": map[string]interface{}{
-						"__typename":       "CSRFTokenResponse",
-						"csrfToken":        "test-csrf-token",
-						"appSessionToken":  "test-app-session",
+						"__typename":      "CSRFTokenResponse",
+						"csrfToken":       "test-csrf-token",
+						"appSessionToken": "test-app-session",
 					},
 				},
 			}
@@ -258,10 +258,10 @@ func TestSubmitOTP_Success(t *testing.T) {
 			response := map[string]interface{}{
 				"data": map[string]interface{}{
 					"loginWithOTP": map[string]interface{}{
-						"__typename":        "MobileLoginResponse",
-						"accessToken":       "test-access-token",
-						"refreshToken":      "test-refresh-token",
-						"userSessionToken":  "test-user-session",
+						"__typename":       "MobileLoginResponse",
+						"accessToken":      "test-access-token",
+						"refreshToken":     "test-refresh-token",
+						"userSessionToken": "test-user-session",
 					},
 				},
 			}

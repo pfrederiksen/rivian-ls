@@ -30,11 +30,11 @@ var (
 
 // Exit codes
 const (
-	ExitSuccess       = 0
-	ExitAuthFailure   = 1
+	ExitSuccess         = 0
+	ExitAuthFailure     = 1
 	ExitVehicleNotFound = 2
-	ExitAPIError      = 3
-	ExitInvalidArgs   = 4
+	ExitAPIError        = 3
+	ExitInvalidArgs     = 4
 )
 
 func printVersion(w io.Writer) error {
@@ -159,30 +159,9 @@ func run(args []string) int {
 		return runLoginCommand(ctx, client, credCache, loginEmail, loginPassword, loginOTP)
 	}
 
-	// Try to authenticate
-	if err := authenticate(ctx, client, credCache, email, password, otp); err != nil {
-		_, _ = fmt.Fprintf(os.Stderr, "Authentication failed: %v\n", err)
-		return ExitAuthFailure
-	}
-
-	// Get vehicles
-	vehicles, err := client.GetVehicles(ctx)
-	if err != nil {
-		_, _ = fmt.Fprintf(os.Stderr, "Failed to get vehicles: %v\n", err)
-		return ExitAPIError
-	}
-
-	if len(vehicles) == 0 {
-		_, _ = fmt.Fprintf(os.Stderr, "No vehicles found\n")
-		return ExitVehicleNotFound
-	}
-
-	if *vehicleIndex < 0 || *vehicleIndex >= len(vehicles) {
-		_, _ = fmt.Fprintf(os.Stderr, "Vehicle index %d out of range (have %d vehicles)\n", *vehicleIndex, len(vehicles))
-		return ExitVehicleNotFound
-	}
-
-	vehicle := vehicles[*vehicleIndex]
+	// Check if this is an offline status request — if so, skip auth and API calls entirely.
+	// The offline flag is a subcommand flag, so we peek at the subcommand args to detect it.
+	isOfflineStatus := subcommand == "status" && hasFlag(subcommandArgs, "offline")
 
 	// Open database (unless --no-store is set)
 	var db *store.Store
@@ -196,14 +175,64 @@ func run(args []string) int {
 		defer func() { _ = db.Close() }()
 	}
 
+	// In offline mode, resolve the vehicle ID from the local store instead of the API
+	var vehicleID string
+	var vehicles []rivian.Vehicle // needed for TUI
+	if isOfflineStatus {
+		if db == nil {
+			_, _ = fmt.Fprintf(os.Stderr, "Offline mode requires state storage (--no-store conflicts with --offline)\n")
+			return ExitInvalidArgs
+		}
+		vehicleIDs, err := db.ListVehicleIDs(ctx)
+		if err != nil {
+			_, _ = fmt.Fprintf(os.Stderr, "Failed to list vehicles from cache: %v\n", err)
+			return ExitAPIError
+		}
+		if len(vehicleIDs) == 0 {
+			_, _ = fmt.Fprintf(os.Stderr, "No cached vehicle data found. Run a live query first to populate the cache.\n")
+			return ExitVehicleNotFound
+		}
+		if *vehicleIndex < 0 || *vehicleIndex >= len(vehicleIDs) {
+			_, _ = fmt.Fprintf(os.Stderr, "Vehicle index %d out of range (have %d cached vehicles)\n", *vehicleIndex, len(vehicleIDs))
+			return ExitVehicleNotFound
+		}
+		vehicleID = vehicleIDs[*vehicleIndex]
+	} else {
+		// Try to authenticate
+		if err := authenticate(ctx, client, credCache, email, password, otp); err != nil {
+			_, _ = fmt.Fprintf(os.Stderr, "Authentication failed: %v\n", err)
+			return ExitAuthFailure
+		}
+
+		// Get vehicles
+		var err error
+		vehicles, err = client.GetVehicles(ctx)
+		if err != nil {
+			_, _ = fmt.Fprintf(os.Stderr, "Failed to get vehicles: %v\n", err)
+			return ExitAPIError
+		}
+
+		if len(vehicles) == 0 {
+			_, _ = fmt.Fprintf(os.Stderr, "No vehicles found\n")
+			return ExitVehicleNotFound
+		}
+
+		if *vehicleIndex < 0 || *vehicleIndex >= len(vehicles) {
+			_, _ = fmt.Fprintf(os.Stderr, "Vehicle index %d out of range (have %d vehicles)\n", *vehicleIndex, len(vehicles))
+			return ExitVehicleNotFound
+		}
+
+		vehicleID = vehicles[*vehicleIndex].ID
+	}
+
 	// Route to subcommand or launch TUI
 	switch subcommand {
 	case "status":
-		return runStatusCommand(ctx, client, db, vehicle.ID, subcommandArgs)
+		return runStatusCommand(ctx, client, db, vehicleID, subcommandArgs)
 	case "watch":
-		return runWatchCommand(ctx, client, db, vehicle.ID, subcommandArgs)
+		return runWatchCommand(ctx, client, db, vehicleID, subcommandArgs)
 	case "export":
-		return runExportCommand(ctx, db, vehicle.ID, subcommandArgs)
+		return runExportCommand(ctx, db, vehicleID, subcommandArgs)
 	case "":
 		// No subcommand - launch TUI
 		model := tui.NewModel(client, db, vehicles, *vehicleIndex)
@@ -560,6 +589,18 @@ func runExportCommand(ctx context.Context, db *store.Store, vehicleID string, ar
 	}
 
 	return ExitSuccess
+}
+
+// hasFlag checks whether a flag name appears in a list of arguments.
+// It handles both --flag and --flag=value forms.
+func hasFlag(args []string, name string) bool {
+	for _, arg := range args {
+		if arg == "--"+name || arg == "-"+name ||
+			strings.HasPrefix(arg, "--"+name+"=") || strings.HasPrefix(arg, "-"+name+"=") {
+			return true
+		}
+	}
+	return false
 }
 
 func main() {

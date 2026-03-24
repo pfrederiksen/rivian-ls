@@ -405,3 +405,68 @@ func TestGetStats(t *testing.T) {
 		t.Error("DatabaseSize is 0")
 	}
 }
+
+func TestListVehicleIDs(t *testing.T) {
+	tmpDir := t.TempDir()
+	store, err := NewStore(filepath.Join(tmpDir, "test.db"))
+	if err != nil {
+		t.Fatalf("NewStore failed: %v", err)
+	}
+	defer func() { _ = store.Close() }()
+
+	ctx := context.Background()
+
+	// Empty store should return empty list
+	ids, err := store.ListVehicleIDs(ctx)
+	if err != nil {
+		t.Fatalf("ListVehicleIDs failed: %v", err)
+	}
+	if len(ids) != 0 {
+		t.Errorf("Expected 0 vehicle IDs, got %d", len(ids))
+	}
+
+	// Save states for two vehicles with different timestamps
+	now := time.Now()
+	olderState := &model.VehicleState{
+		VehicleID:     "vehicle-aaa",
+		VIN:           "VINAAA",
+		Name:          "Older Vehicle",
+		Model:         "R1T",
+		UpdatedAt:     now.Add(-2 * time.Hour),
+		BatteryLevel:  80,
+		RangeEstimate: 200,
+		ChargeState:   model.ChargeStateNotCharging,
+	}
+	newerState := &model.VehicleState{
+		VehicleID:     "vehicle-bbb",
+		VIN:           "VINBBB",
+		Name:          "Newer Vehicle",
+		Model:         "R1S",
+		UpdatedAt:     now,
+		BatteryLevel:  90,
+		RangeEstimate: 250,
+		ChargeState:   model.ChargeStateNotCharging,
+	}
+	if err := store.SaveState(ctx, olderState); err != nil {
+		t.Fatalf("SaveState failed: %v", err)
+	}
+	if err := store.SaveState(ctx, newerState); err != nil {
+		t.Fatalf("SaveState failed: %v", err)
+	}
+
+	ids, err = store.ListVehicleIDs(ctx)
+	if err != nil {
+		t.Fatalf("ListVehicleIDs failed: %v", err)
+	}
+	if len(ids) != 2 {
+		t.Fatalf("Expected 2 vehicle IDs, got %d", len(ids))
+	}
+
+	// Most recently active vehicle should be first
+	if ids[0] != "vehicle-bbb" {
+		t.Errorf("Expected vehicle-bbb first (most recent), got %s", ids[0])
+	}
+	if ids[1] != "vehicle-aaa" {
+		t.Errorf("Expected vehicle-aaa second, got %s", ids[1])
+	}
+}

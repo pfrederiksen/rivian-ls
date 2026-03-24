@@ -117,7 +117,7 @@ type TirePressures struct {
 	RearLeftStatus   string
 	RearRightStatus  string
 
-	UpdatedAt  time.Time
+	UpdatedAt time.Time
 }
 
 // Credentials stores authentication credentials.
