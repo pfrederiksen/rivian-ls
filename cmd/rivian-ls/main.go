@@ -255,6 +255,62 @@ func isInteractive() bool {
 	return term.IsTerminal(int(os.Stdin.Fd()))
 }
 
+// completePendingOTP completes a two-phase OTP login using a pending session from disk.
+// Returns nil on success, or an error if no valid pending session exists or OTP fails.
+func completePendingOTP(ctx context.Context, client *rivian.HTTPClient, credCache *auth.CredentialsCache, otpCode string) error {
+	pending, err := credCache.LoadPendingOTP()
+	if err != nil || pending == nil || !pending.IsValid() {
+		return fmt.Errorf("no valid pending OTP session")
+	}
+
+	client.SetSessionTokens(pending.CSRFToken, pending.AppSessionID)
+	client.SetOTPState(pending.OTPToken, pending.Email)
+
+	if err := client.SubmitOTP(ctx, otpCode); err != nil {
+		_ = credCache.DeletePendingOTP()
+		return fmt.Errorf("OTP submission failed: %w", err)
+	}
+
+	// Create a fresh CSRF session — the Phase 1 session tokens restored from
+	// disk are stale and will cause UNAUTHENTICATED errors on subsequent API calls.
+	// Then refresh the token to get an accessToken bound to the new session.
+	if err := client.CreateSession(ctx); err != nil {
+		_, _ = fmt.Fprintf(os.Stderr, "Warning: Could not create fresh session: %v\n", err)
+	}
+	if err := client.RefreshToken(ctx); err != nil {
+		_, _ = fmt.Fprintf(os.Stderr, "Warning: Could not refresh token: %v\n", err)
+	}
+
+	// Clean up pending OTP and save credentials
+	_ = credCache.DeletePendingOTP()
+
+	if creds := client.GetCredentials(); creds != nil {
+		if err := credCache.Save(pending.Email, creds); err != nil {
+			_, _ = fmt.Fprintf(os.Stderr, "Warning: Could not save credentials: %v\n", err)
+		}
+	}
+	return nil
+}
+
+// restoreSession creates a fresh CSRF session and refreshes the token.
+// This ensures the u-sess header contains a valid accessToken bound to the
+// current session. Returns true if the session was successfully restored.
+func restoreSession(ctx context.Context, client *rivian.HTTPClient, credCache *auth.CredentialsCache, email string) bool {
+	if err := client.CreateSession(ctx); err != nil {
+		return false
+	}
+	if err := client.RefreshToken(ctx); err != nil {
+		return false
+	}
+	// Save refreshed credentials
+	if credCache != nil {
+		if creds := client.GetCredentials(); creds != nil {
+			_ = credCache.Save(email, creds)
+		}
+	}
+	return true
+}
+
 func authenticate(ctx context.Context, client *rivian.HTTPClient, credCache *auth.CredentialsCache, email, password, otp *string) error {
 	// Clean up stale pending OTP sessions on startup
 	if credCache != nil && *otp == "" {
@@ -268,25 +324,13 @@ func authenticate(ctx context.Context, client *rivian.HTTPClient, credCache *aut
 	//   Phase 1: rivian-ls login --email x --password y   → triggers SMS
 	//   Phase 2: rivian-ls login --otp 123456              → completes auth
 	if *otp != "" && credCache != nil {
-		pending, err := credCache.LoadPendingOTP()
-		if err == nil && pending != nil && pending.IsValid() {
-			client.SetSessionTokens(pending.CSRFToken, pending.AppSessionID)
-			client.SetOTPState(pending.OTPToken, pending.Email)
-
-			if err := client.SubmitOTP(ctx, *otp); err != nil {
-				_ = credCache.DeletePendingOTP()
-				return fmt.Errorf("OTP submission failed: %w", err)
-			}
-
-			// Clean up pending OTP and save credentials
-			_ = credCache.DeletePendingOTP()
-
-			if creds := client.GetCredentials(); creds != nil {
-				if err := credCache.Save(pending.Email, creds); err != nil {
-					_, _ = fmt.Fprintf(os.Stderr, "Warning: Could not save credentials: %v\n", err)
-				}
-			}
+		err := completePendingOTP(ctx, client, credCache, *otp)
+		if err == nil {
 			return nil
+		}
+		// If OTP submission failed (not just "no pending session"), propagate the error
+		if strings.Contains(err.Error(), "OTP submission failed") {
+			return err
 		}
 		// No valid pending session — fall through to normal auth
 	}
@@ -295,14 +339,12 @@ func authenticate(ctx context.Context, client *rivian.HTTPClient, credCache *aut
 	if *email == "" {
 		if credCache != nil {
 			cached, err := credCache.Load()
-			if err == nil && cached != nil && cached.IsValid() {
+			if err == nil && cached != nil {
 				client.SetCredentials(cached.ToRivianCredentials())
-				// Create a fresh session so CSRF token and app session ID are set
-				if err := client.CreateSession(ctx); err == nil {
+				if restoreSession(ctx, client, credCache, cached.Email) {
 					return nil
 				}
-				// Session creation failed — cached token may be invalid server-side.
-				// Fall through to prompt for credentials.
+				// Session or refresh failed — cached token may be invalid server-side.
 				_, _ = fmt.Fprintf(os.Stderr, "Warning: Cached session expired, re-authentication required\n")
 				_ = credCache.Delete()
 			}
@@ -322,37 +364,13 @@ func authenticate(ctx context.Context, client *rivian.HTTPClient, credCache *aut
 	var needsAuth = true
 	if credCache != nil {
 		cached, err := credCache.Load()
-		if err == nil && cached != nil {
-			if cached.Email == *email {
-				if cached.IsValid() {
-					client.SetCredentials(cached.ToRivianCredentials())
-					// Create a fresh session so CSRF token and app session ID are set
-					if err := client.CreateSession(ctx); err == nil {
-						needsAuth = false
-					} else {
-						// Token looks valid locally but rejected server-side
-						_, _ = fmt.Fprintf(os.Stderr, "Warning: Cached session expired, re-authentication required\n")
-						_ = credCache.Delete()
-					}
-				} else {
-					// Try to refresh - need a session first for the API call
-					client.SetCredentials(cached.ToRivianCredentials())
-					if err := client.CreateSession(ctx); err == nil {
-						if err := client.RefreshToken(ctx); err == nil {
-							needsAuth = false
-							// Save refreshed credentials
-							if creds := client.GetCredentials(); creds != nil {
-								_ = credCache.Save(*email, creds)
-							}
-						} else {
-							// Refresh failed — clear stale cache
-							_ = credCache.Delete()
-						}
-					} else {
-						// Session creation failed — clear stale cache
-						_ = credCache.Delete()
-					}
-				}
+		if err == nil && cached != nil && cached.Email == *email {
+			client.SetCredentials(cached.ToRivianCredentials())
+			if restoreSession(ctx, client, credCache, *email) {
+				needsAuth = false
+			} else {
+				_, _ = fmt.Fprintf(os.Stderr, "Warning: Cached session expired, re-authentication required\n")
+				_ = credCache.Delete()
 			}
 		}
 	}
