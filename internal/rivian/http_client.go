@@ -31,12 +31,12 @@ type HTTPClient struct {
 	httpClient *http.Client
 	userAgent  string
 
-	mu             sync.RWMutex
-	credentials    *Credentials
-	csrfToken      string // CSRF token for requests
-	appSessionID   string // App session ID (a-sess header)
-	otpToken       string // OTP token for MFA flow
-	email          string // Email for OTP submission
+	mu           sync.RWMutex
+	credentials  *Credentials
+	csrfToken    string // CSRF token for requests
+	appSessionID string // App session ID (a-sess header)
+	otpToken     string // OTP token for MFA flow
+	email        string // Email for OTP submission
 }
 
 // NewHTTPClient creates a new Rivian HTTP client.
@@ -169,13 +169,13 @@ type graphqlRequest struct {
 
 // graphqlResponse represents a GraphQL response.
 type graphqlResponse struct {
-	Data   json.RawMessage   `json:"data"`
-	Errors []graphqlError    `json:"errors,omitempty"`
+	Data   json.RawMessage `json:"data"`
+	Errors []graphqlError  `json:"errors,omitempty"`
 }
 
 // graphqlError represents a GraphQL error.
 type graphqlError struct {
-	Message string `json:"message"`
+	Message string   `json:"message"`
 	Path    []string `json:"path,omitempty"`
 }
 

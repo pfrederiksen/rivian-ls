@@ -26,15 +26,15 @@ const (
 // Model is the main Bubble Tea model for the TUI
 type Model struct {
 	// Core dependencies
-	client  rivian.Client
-	store   *store.Store
+	client rivian.Client
+	store  *store.Store
 
 	// Multi-vehicle state
-	vehicles      []rivian.Vehicle                   // All available vehicles
-	activeVehicle int                                // Currently selected vehicle index
-	vehicleStates map[string]*model.VehicleState     // vehicleID -> cached state
-	reducers      map[string]*model.Reducer          // vehicleID -> reducer instance
-	wsClients     map[string]*rivian.WebSocketClient // vehicleID -> WebSocket client
+	vehicles      []rivian.Vehicle                    // All available vehicles
+	activeVehicle int                                 // Currently selected vehicle index
+	vehicleStates map[string]*model.VehicleState      // vehicleID -> cached state
+	reducers      map[string]*model.Reducer           // vehicleID -> reducer instance
+	wsClients     map[string]*rivian.WebSocketClient  // vehicleID -> WebSocket client
 	updateChans   map[string]chan *model.VehicleState // vehicleID -> update channel
 
 	// Application state
@@ -296,7 +296,6 @@ type errMsg struct {
 }
 
 type wsConnectedMsg struct{}
-
 
 // Commands
 

@@ -131,3 +131,28 @@ func TestPrintVersionDateError(t *testing.T) {
 		t.Error("Expected error when writer fails, got nil")
 	}
 }
+
+func TestHasFlag(t *testing.T) {
+	tests := []struct {
+		name   string
+		args   []string
+		flag   string
+		expect bool
+	}{
+		{"long flag present", []string{"--offline", "--format", "json"}, "offline", true},
+		{"long flag absent", []string{"--format", "json"}, "offline", false},
+		{"flag with value", []string{"--offline=true", "--format", "json"}, "offline", true},
+		{"short flag", []string{"-offline"}, "offline", true},
+		{"empty args", []string{}, "offline", false},
+		{"similar but different flag", []string{"--offline-mode"}, "offline", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := hasFlag(tt.args, tt.flag)
+			if got != tt.expect {
+				t.Errorf("hasFlag(%v, %q) = %v, want %v", tt.args, tt.flag, got, tt.expect)
+			}
+		})
+	}
+}

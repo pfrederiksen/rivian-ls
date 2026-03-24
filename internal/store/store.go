@@ -371,6 +371,32 @@ func (s *Store) GetStats(ctx context.Context) (*StoreStats, error) {
 	return &stats, nil
 }
 
+// ListVehicleIDs returns all distinct vehicle IDs in the store, ordered by most recent activity.
+func (s *Store) ListVehicleIDs(ctx context.Context) ([]string, error) {
+	query := `
+		SELECT vehicle_id
+		FROM vehicle_states
+		GROUP BY vehicle_id
+		ORDER BY MAX(timestamp) DESC
+	`
+
+	rows, err := s.db.QueryContext(ctx, query)
+	if err != nil {
+		return nil, fmt.Errorf("list vehicle IDs: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	var ids []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, fmt.Errorf("scan vehicle ID: %w", err)
+		}
+		ids = append(ids, id)
+	}
+	return ids, rows.Err()
+}
+
 // StoreStats contains storage statistics
 type StoreStats struct {
 	TotalStates    int64

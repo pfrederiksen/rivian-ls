@@ -32,7 +32,7 @@ func TestChartsView_NextMetric(t *testing.T) {
 
 	// Cycle through all metrics
 	expectedOrder := []ChartMetric{
-		MetricRange,      // 0 + 1 = 1
+		MetricRange,        // 0 + 1 = 1
 		MetricChargingRate, // 1 + 1 = 2
 		MetricTemperature,  // 2 + 1 = 3
 		MetricEfficiency,   // 3 + 1 = 4
@@ -124,11 +124,11 @@ func TestChartsView_CalculateMinMax(t *testing.T) {
 	charge0 := 0.0
 
 	tests := []struct {
-		name          string
-		metric        ChartMetric
-		history       []*model.VehicleState
-		expectedMin   float64
-		expectedMax   float64
+		name        string
+		metric      ChartMetric
+		history     []*model.VehicleState
+		expectedMin float64
+		expectedMax float64
 	}{
 		{
 			name:   "battery levels",

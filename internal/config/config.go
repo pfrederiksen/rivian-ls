@@ -16,8 +16,8 @@ type Config struct {
 	Password string `yaml:"password"` // Usually left empty, prompt is preferred
 
 	// Storage
-	DBPath      string `yaml:"db_path"`
-	TokenCache  string `yaml:"token_cache"`
+	DBPath       string `yaml:"db_path"`
+	TokenCache   string `yaml:"token_cache"`
 	DisableStore bool   `yaml:"disable_store"`
 
 	// Vehicle selection
