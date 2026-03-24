@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/http/cookiejar"
 	"sync"
 	"time"
 )
@@ -41,11 +42,18 @@ type HTTPClient struct {
 
 // NewHTTPClient creates a new Rivian HTTP client.
 func NewHTTPClient(opts ...Option) *HTTPClient {
+	// Cookie jar is required — Rivian's API sets session cookies during
+	// CreateCSRFToken that must be sent with subsequent requests. Without
+	// a jar, data queries (GetVehicles, GetVehicleState) fail with
+	// UNAUTHENTICATED even when auth headers are correct.
+	jar, _ := cookiejar.New(nil)
+
 	client := &HTTPClient{
 		baseURL:   BaseURL,
 		userAgent: UserAgent,
 		httpClient: &http.Client{
 			Timeout: 30 * time.Second,
+			Jar:     jar,
 		},
 	}
 
