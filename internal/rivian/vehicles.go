@@ -408,7 +408,7 @@ func areAllDoorsLocked(apiState vehicleStateData) bool {
 // parseChargeState converts API charge status string to ChargeState enum.
 func parseChargeState(status string) ChargeState {
 	switch status {
-	case "charging":
+	case "charging", "charging_active", "charging_ready":
 		return ChargeStateCharging
 	case "complete", "fully_charged", "charging_complete":
 		return ChargeStateComplete
