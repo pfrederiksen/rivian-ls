@@ -285,6 +285,7 @@ func TestParseChargeState(t *testing.T) {
 		want  ChargeState
 	}{
 		{"charging", ChargeStateCharging},
+		{"charging_active", ChargeStateCharging},
 		{"complete", ChargeStateComplete},
 		{"fully_charged", ChargeStateComplete},
 		{"charging_complete", ChargeStateComplete},
@@ -293,6 +294,7 @@ func TestParseChargeState(t *testing.T) {
 		{"not_connected", ChargeStateDisconnected},
 		{"not_charging", ChargeStateNotCharging},
 		{"stopped", ChargeStateNotCharging},
+		{"charging_ready", ChargeStateNotCharging},
 		{"unknown_status", ChargeStateUnknown},
 		{"", ChargeStateDisconnected},
 	}
