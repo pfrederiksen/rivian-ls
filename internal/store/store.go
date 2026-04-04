@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	_ "github.com/mattn/go-sqlite3"
@@ -22,12 +23,14 @@ func NewStore(dbPath string) (*Store, error) {
 	// Create the file with restricted permissions before SQLite opens it.
 	// This prevents the default umask from creating a world-readable database
 	// that contains PII (GPS coordinates, VIN, vehicle telemetry).
-	if _, err := os.Stat(dbPath); os.IsNotExist(err) {
-		f, err := os.OpenFile(dbPath, os.O_CREATE|os.O_WRONLY, 0600)
-		if err != nil {
-			return nil, fmt.Errorf("create database file: %w", err)
+	if !isSQLiteMemoryDSN(dbPath) {
+		if _, err := os.Stat(dbPath); os.IsNotExist(err) {
+			f, err := os.OpenFile(dbPath, os.O_CREATE|os.O_WRONLY, 0600)
+			if err != nil {
+				return nil, fmt.Errorf("create database file: %w", err)
+			}
+			_ = f.Close()
 		}
-		_ = f.Close()
 	}
 
 	db, err := sql.Open("sqlite3", dbPath)
@@ -56,6 +59,14 @@ func NewStore(dbPath string) (*Store, error) {
 	}
 
 	return store, nil
+}
+
+func isSQLiteMemoryDSN(dbPath string) bool {
+	if dbPath == ":memory:" {
+		return true
+	}
+
+	return strings.HasPrefix(dbPath, "file:") && strings.Contains(dbPath, "mode=memory")
 }
 
 // Close closes the database connection

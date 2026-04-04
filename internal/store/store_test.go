@@ -73,6 +73,33 @@ func TestNewStore(t *testing.T) {
 	}
 }
 
+func TestNewStore_MemoryDSNDoesNotCreateFile(t *testing.T) {
+	originalWD, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Getwd failed: %v", err)
+	}
+
+	tmpDir := t.TempDir()
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("Chdir failed: %v", err)
+	}
+	t.Cleanup(func() {
+		if err := os.Chdir(originalWD); err != nil {
+			t.Fatalf("restore working directory failed: %v", err)
+		}
+	})
+
+	store, err := NewStore(":memory:")
+	if err != nil {
+		t.Fatalf("NewStore failed: %v", err)
+	}
+	defer func() { _ = store.Close() }()
+
+	if _, err := os.Stat(filepath.Join(tmpDir, ":memory:")); !os.IsNotExist(err) {
+		t.Fatalf("expected :memory: file to not be created, got err=%v", err)
+	}
+}
+
 func TestSaveState(t *testing.T) {
 	tmpDir := t.TempDir()
 	store, err := NewStore(filepath.Join(tmpDir, "test.db"))
