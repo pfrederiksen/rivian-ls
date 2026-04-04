@@ -263,19 +263,14 @@ func completePendingOTP(ctx context.Context, client *rivian.HTTPClient, credCach
 		return fmt.Errorf("no valid pending OTP session")
 	}
 
-	// Create a fresh CSRF session BEFORE submitting OTP. This is critical because:
-	// 1. It establishes session cookies in the HTTP client's cookie jar (the jar is
-	//    empty since this is a new process — Phase 1's cookies died with that process)
-	// 2. The loginWithOTP mutation accepts the otpToken as a GraphQL argument, so it
-	//    doesn't need to be paired with Phase 1's specific CSRF session
-	if err := client.CreateSession(ctx); err != nil {
-		return fmt.Errorf("create session: %w", err)
-	}
-
+	// Restore the exact OTP-bound session from phase 1.
+	// Rivian appears to bind otpToken to the original csrf-token/a-sess pair,
+	// so replacing it with a freshly created session can cause
+	// "User is unauthenticated" during loginWithOTP.
+	client.SetSessionTokens(pending.CSRFToken, pending.AppSessionID)
 	client.SetOTPState(pending.OTPToken, pending.Email)
 
 	if err := client.SubmitOTP(ctx, otpCode); err != nil {
-		_ = credCache.DeletePendingOTP()
 		return fmt.Errorf("OTP submission failed: %w", err)
 	}
 
